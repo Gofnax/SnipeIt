@@ -90,7 +90,7 @@ void print_config(const UARTDevice* pdevice)
 int main(void)
 {
 	UARTDevice uart2 = {
-		.pname     = "/dev/serial0",
+		.pname     = "/dev/ttyAMA0",
 		.baud      = B115200,
 		.bits      = CS8,
 		.stop_bits = SINGLE_STOP_BIT,
