@@ -91,7 +91,7 @@ int main(void)
 {
 	UARTDevice uart2 = {
 		.pname     = "/dev/ttyAMA0",
-		.baud      = B115200,
+		.baud      = B9600,
 		.bits      = CS8,
 		.stop_bits = SINGLE_STOP_BIT,
 		.parity    = PARITY_NONE,
