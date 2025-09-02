@@ -73,9 +73,21 @@ int main(void)
             uart_close(&uart2);
             exit(EXIT_FAILURE);
         }
-        float dist = ((float)(((long)(((unsigned long)recv_buf[10] << 24) | ((unsigned long)recv_buf[9] << 16) | ((unsigned long)recv_buf[8] << 8))) / 256)) / 1000.0;
-        printf("Distance: %f\n", dist);
-        nanosleep(&ts, NULL);
+
+		// Print raw values for debugging
+        printf("Raw bytes: ");
+        for(int i = 0; i < 16; i++)
+		{
+            printf("%02X ", recv_buf[i]);
+        }
+		printf("\n%02X %02X %02X\n", recv_buf[8], recv_buf[9], recv_buf[10]);
+
+		if(recv_buf[0] == 0x57 && recv_buf[1] == 0x00)
+		{
+			float dist = ((int32_t)((int32_t)(recv_buf[8]) << 8 | (int32_t)(recv_buf[9]) << 16 | (int32_t)(recv_buf[10]) << 24) / 256) / 1000.0f;
+			printf("Distance: %f\n", dist);
+			nanosleep(&ts, NULL);
+		}
     }
 
     uart_close(&uart2);
