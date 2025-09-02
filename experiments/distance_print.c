@@ -55,6 +55,31 @@ int main(void)
 	}
 	printf("Success! uart2 and uart2_check are the same\n");
 
+	const uint8_t command[] = { 0x57, 0x10, 0xff, 0xff, 0x00, 0xff, 0xff, 0x63 };
+	uint8_t read_buff[16];
+	size_t cmd_len = sizeof(command);
+	size_t read_len = sizeof(read_buff);
+	while(1)
+	{
+		uart_write_all(&uart2, command, &cmd_len);
+		uart_read_all(&uart2, read_buff, &read_len);
+		for(int i = 0; i < 16; i++)
+		{
+            printf("%02X ", read_buff[i]);
+        }
+		printf("\n");
+		
+		if(read_buff[0] == 0x57 && read_buff[1] == 0x00)
+		{
+			float dist = ((int32_t)((int32_t)(read_buff[8]) << 8 | (int32_t)(read_buff[9]) << 16 | (int32_t)(read_buff[10]) << 24) / 256) / 1000.0f;
+			printf("Distance: %f\n", dist);
+		}
+		nanosleep(&ts, NULL);
+		cmd_len = sizeof(command);
+		read_len = sizeof(read_buff);
+	}
+
+	#if 0
     printf("Sampling dinstace:\n");
     while(1)
     {
@@ -89,7 +114,7 @@ int main(void)
 			nanosleep(&ts, NULL);
 		}
     }
-
+	#endif
     uart_close(&uart2);
 	return 0;
 }
