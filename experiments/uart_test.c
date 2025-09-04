@@ -4,7 +4,7 @@
 
 #include <unistd.h>
 
-#include "../src/uart.h"
+#include "../src/uart_old.h"
 
 void print_baud(const UARTDevice* pdevice)
 {

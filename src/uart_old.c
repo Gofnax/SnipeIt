@@ -1,4 +1,4 @@
-#include "uart.h"
+#include "uart_old.h"
 
 /* Linux specific includes */
 #include <sys/types.h>
