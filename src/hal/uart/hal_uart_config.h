@@ -46,6 +46,13 @@ typedef enum eUARTParityBit
     eEVEN_PARITY_BIT
 } eUARTParityBit;
 
+typedef enum eUARTDeviceNumber
+{
+    eUART0_DEVICE,
+    eUART1_DEVICE,
+    eUART2_DEVICE
+} eUARTDeviceNumber;
+
 typedef enum eUARTConfig
 {
     eUART0_BAUD_CONFIG          = eBAUD9600,
