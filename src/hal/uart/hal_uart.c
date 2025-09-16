@@ -123,4 +123,36 @@ int hal_uart_init()
             return -1;
         }
     }
+
+    return 0;
+}
+
+int hal_uart_read(int device_index, void* buf, size_t count)
+{
+    if(device_index < 0 || device_index > NUM_UART_DEVICES || buf == NULL)
+    {
+        return -1;
+    }
+
+    int fd = uart_devices[device_index].fd;
+    size_t bytes_read = 0;
+    while(count > 0)
+    {
+        bytes_read = read(fd, buf, count);
+        if(bytes_read < 0)
+        {
+            if(errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)   //These errors allow retry of reading
+            {
+                continue;
+            }
+            else
+            {
+                return -1;
+            }
+        }
+        buf += bytes_read;
+        count -= bytes_read;
+    }
+
+    return 0;
 }
