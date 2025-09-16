@@ -3,27 +3,31 @@ package com.example.mysnipeit
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import com.example.mysnipeit.ui.theme.MySnipeItTheme
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.mysnipeit.ui.theme.MySniperItTheme
+import com.example.mysnipeit.viewmodel.SniperViewModel
+import com.example.mysnipeit.viewmodel.AppScreen
+import com.example.mysnipeit.ui.device.DeviceSelectionScreen
+import com.example.mysnipeit.ui.dashboard.DashboardScreen
 
 class MainActivity : ComponentActivity() {
+    private val viewModel: SniperViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
         setContent {
-            MySnipeItTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
+            MySniperItTheme {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    SniperApp(viewModel = viewModel)
                 }
             }
         }
@@ -31,17 +35,42 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
+fun SniperApp(viewModel: SniperViewModel) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val availableDevices by viewModel.availableDevices.collectAsStateWithLifecycle()
+    val sensorData by viewModel.sensorData.collectAsStateWithLifecycle()
+    val detectedTargets by viewModel.detectedTargets.collectAsStateWithLifecycle()
+    val shootingSolution by viewModel.shootingSolution.collectAsStateWithLifecycle()
+    val systemStatus by viewModel.systemStatus.collectAsStateWithLifecycle()
 
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    MySnipeItTheme {
-        Greeting("Android")
+    when (uiState.currentScreen) {
+        AppScreen.DEVICE_SELECTION -> {
+            DeviceSelectionScreen(
+                devices = availableDevices,
+                onDeviceSelected = { device ->
+                    viewModel.selectDevice(device)
+                },
+                onScanClick = {
+                    viewModel.scanForDevices()
+                }
+            )
+        }
+        AppScreen.DASHBOARD -> {
+            DashboardScreen(
+                sensorData = sensorData,
+                detectedTargets = detectedTargets,
+                shootingSolution = shootingSolution,
+                systemStatus = systemStatus,
+                onConnectClick = {
+                    viewModel.connectToSystem()
+                },
+                onDisconnectClick = {
+                    viewModel.disconnectFromSystem()
+                },
+                onBackClick = {
+                    viewModel.goBackToDeviceSelection()
+                }
+            )
+        }
     }
 }

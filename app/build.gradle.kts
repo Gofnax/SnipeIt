@@ -1,7 +1,8 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    id("kotlin-parcelize") // For data passing between screens
+    id("kotlin-parcelize")
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 android {
@@ -10,7 +11,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.mysnipeit"
-        minSdk = 26 // Android 8.0 - needed for modern networking features
+        minSdk = 26
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
@@ -41,12 +42,8 @@ android {
     }
 
     buildFeatures {
-        compose = true // Enable Jetpack Compose for modern UI
-        viewBinding = true // Enable ViewBinding for video components
-    }
-
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.4"
+        compose = true
+        viewBinding = true
     }
 
     packaging {
@@ -62,7 +59,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation("androidx.activity:activity-compose:1.8.1")
 
-    // Jetpack Compose (Modern UI framework)
+    // Jetpack Compose
     implementation(platform("androidx.compose:compose-bom:2023.10.01"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
@@ -75,14 +72,15 @@ dependencies {
     // ViewModel & LiveData
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
     implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.7.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0") // This fixes collectAsStateWithLifecycle
 
-    // Networking (Essential for RPi5 communication)
+    // Networking
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
-    // WebSocket for real-time communication
+    // WebSocket
     implementation("org.java-websocket:Java-WebSocket:1.5.3")
 
     // Video streaming
@@ -93,7 +91,7 @@ dependencies {
     implementation("com.google.android.gms:play-services-maps:18.2.0")
     implementation("com.google.android.gms:play-services-location:21.0.1")
 
-    // Permissions handling
+    // Permissions
     implementation("com.google.accompanist:accompanist-permissions:0.32.0")
 
     // JSON parsing

@@ -1,18 +1,11 @@
 package com.example.mysnipeit.data.network
 
-
 import com.example.mysnipeit.data.models.*
-import com.google.gson.Gson
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import org.java_websocket.client.WebSocketClient
-import org.java_websocket.handshake.ServerHandshake
-import java.net.URI
 import android.util.Log
 
 class RaspberryPiClient {
-    private var webSocketClient: WebSocketClient? = null
-    private val gson = Gson()
 
     // StateFlow for reactive UI updates
     private val _sensorData = MutableStateFlow<SensorData?>(null)
@@ -38,88 +31,59 @@ class RaspberryPiClient {
     val systemStatus: StateFlow<SystemStatus> = _systemStatus
 
     fun connect(ipAddress: String, port: Int = 8765) {
-        try {
-            val uri = URI("ws://$ipAddress:$port")
+        Log.d("RaspberryPiClient", "Attempting to connect to $ipAddress:$port")
 
-            webSocketClient = object : WebSocketClient(uri) {
-                override fun onOpen(handshake: ServerHandshake?) {
-                    Log.d("WebSocket", "Connected to RPi5")
-                    _systemStatus.value = _systemStatus.value.copy(
-                        connectionStatus = ConnectionState.CONNECTED
-                    )
-                }
+        // Simulate connection process for now
+        _systemStatus.value = _systemStatus.value.copy(
+            connectionStatus = ConnectionState.CONNECTING
+        )
 
-                override fun onMessage(message: String?) {
-                    message?.let { parseMessage(it) }
-                }
-
-                override fun onClose(code: Int, reason: String?, remote: Boolean) {
-                    Log.d("WebSocket", "Connection closed: $reason")
-                    _systemStatus.value = _systemStatus.value.copy(
-                        connectionStatus = ConnectionState.DISCONNECTED
-                    )
-                }
-
-                override fun onError(ex: Exception?) {
-                    Log.e("WebSocket", "Error: ${ex?.message}")
-                    _systemStatus.value = _systemStatus.value.copy(
-                        connectionStatus = ConnectionState.ERROR
-                    )
-                }
-            }
-
+        // TODO: Implement actual WebSocket connection later
+        // For now, simulate successful connection after delay
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
             _systemStatus.value = _systemStatus.value.copy(
-                connectionStatus = ConnectionState.CONNECTING
+                connectionStatus = ConnectionState.CONNECTED,
+                batteryLevel = 87
             )
-            webSocketClient?.connect()
 
-        } catch (e: Exception) {
-            Log.e("RaspberryPiClient", "Connection failed: ${e.message}")
-            _systemStatus.value = _systemStatus.value.copy(
-                connectionStatus = ConnectionState.ERROR
-            )
-        }
-    }
-
-    private fun parseMessage(message: String) {
-        try {
-            val messageData = gson.fromJson(message, MessageWrapper::class.java)
-
-            when (messageData.type) {
-                "sensor_data" -> {
-                    val sensorData = gson.fromJson(messageData.payload, SensorData::class.java)
-                    _sensorData.value = sensorData
-                }
-                "targets" -> {
-                    val targets = gson.fromJson(messageData.payload, Array<DetectedTarget>::class.java)
-                    _detectedTargets.value = targets.toList()
-                }
-                "shooting_solution" -> {
-                    val solution = gson.fromJson(messageData.payload, ShootingSolution::class.java)
-                    _shootingSolution.value = solution
-                }
-                "system_status" -> {
-                    val status = gson.fromJson(messageData.payload, SystemStatus::class.java)
-                    _systemStatus.value = status.copy(lastHeartbeat = System.currentTimeMillis())
-                }
-            }
-        } catch (e: Exception) {
-            Log.e("RaspberryPiClient", "Failed to parse message: ${e.message}")
-        }
+            // Simulate some mock data
+            simulateMockData()
+        }, 2000)
     }
 
     fun disconnect() {
-        webSocketClient?.close()
-        webSocketClient = null
+        Log.d("RaspberryPiClient", "Disconnecting from RPi5")
+        _systemStatus.value = _systemStatus.value.copy(
+            connectionStatus = ConnectionState.DISCONNECTED
+        )
     }
 
     fun sendCommand(command: String, data: Any? = null) {
-        val message = MessageWrapper(command, gson.toJson(data))
-        webSocketClient?.send(gson.toJson(message))
+        Log.d("RaspberryPiClient", "Sending command: $command")
+        // TODO: Implement actual command sending
     }
 
-    data class MessageWrapper(
-        val type: String,
-        val payload: String
-    )
+    private fun simulateMockData() {
+        // Simulate sensor data
+        _sensorData.value = SensorData(
+            temperature = 22.5,
+            humidity = 65.0,
+            windDirection = 270.0,
+            windSpeed = 3.2,
+            rangefinderDistance = 450.0,
+            gpsLatitude = 35.093,
+            gpsLongitude = 32.014,
+            timestamp = System.currentTimeMillis()
+        )
+
+        // Simulate shooting solution
+        _shootingSolution.value = ShootingSolution(
+            azimuth = 245.5,
+            elevation = 12.3,
+            windageAdjustment = 0.2,
+            elevationAdjustment = 0.8,
+            confidence = 0.85f,
+            timestamp = System.currentTimeMillis()
+        )
+    }
 }
