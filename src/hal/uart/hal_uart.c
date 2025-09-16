@@ -71,43 +71,56 @@ int hal_uart_init()
 
     // Here we set the baud, flags (we don't need any), word size, stop bits, and parity bits for each UART device
     // All the bits configuration is done via the termios struct with its flags and the 'tcsetattr' function
-    // The baud is set using 'cfsetospeed' and 'cfsetispeed' functions
-    // We get the file descriptor for each device after we configure it and use the POSIX 'open' function
+    // The baud is set using 'cfsetospeed' and 'cfsetispeed' functions and the termios struct
 
-    struct termios temp_config = { 0 };
-
-    temp_config.c_cflag |= CLOCAL | CREAD; // Prevents waiting for modem connection and enables reading input from the terminal
-
-    temp_config.c_cflag |= uart_devices[eUART0_DEVICE].word_size;   // Sets the bits per byte
-
-    if(uart_devices[eUART0_DEVICE].stop_bits == 0)
+    for(int i = 0; i < NUM_UART_DEVICES; ++i)
     {
-       temp_config.c_cflag &= (tcflag_t)~(CSTOPB);  // Ensures CSTOPB bit is 0  (sets use of one stop bit)
-    }
-    else
-    {
-        temp_config.c_cflag |= CSTOPB;              // Sets CSTOPB bit to 1 (sets use of two stop bits)
-    }
+        struct termios temp_config = { 0 };
 
-    if(uart_devices[eUART0_DEVICE].parity == 0)
-    {
-        temp_config.c_cflag &= (tcflag_t)~(PARENB);     // Ensures PAREND bit is 0 (disables parity generation and detection)
-        temp_config.c_iflag &= (tcflag_t)~(INPCK);      // Ensures INPCK bit is 0 (disables input parity checking)
-    }
-    else
-    {
-        temp_config.c_cflag |= PARENB;                  // Sets PAREND bit to 1 (enables parity generation and detection)
-        if(uart_devices[eUART0_DEVICE].parity == 1)
+        temp_config.c_cflag |= CLOCAL | CREAD; // Prevents waiting for modem connection and enables reading input from the terminal
+
+        temp_config.c_cflag |= uart_devices[i].word_size;   // Sets the bits per byte
+
+        if(uart_devices[i].stop_bits == 0)
         {
-            temp_config.c_cflag &= (tcflag_t)~(PARODD); // Ensures PARODD bit is 0 (sets parity to even)
+        temp_config.c_cflag &= (tcflag_t)~(CSTOPB);  // Ensures CSTOPB bit is 0  (sets use of one stop bit)
         }
         else
         {
-            temp_config.c_cflag |= PARODD;              // Sets PARODD bit to 1 (sets parity to odd)
+            temp_config.c_cflag |= CSTOPB;              // Sets CSTOPB bit to 1 (sets use of two stop bits)
         }
-        temp_config.c_iflag |= INPCK;                   // Sets INPCK bit to 1 (enables input parity checking)
-        temp_config.c_iflag |= IGNPAR;                  // Sets IGNPAR bit to 1 (sets framing or parity errors to be ignored)
-    }
 
-    
+        if(uart_devices[i].parity == 0)
+        {
+            temp_config.c_cflag &= (tcflag_t)~(PARENB);     // Ensures PAREND bit is 0 (disables parity generation and detection)
+            temp_config.c_iflag &= (tcflag_t)~(INPCK);      // Ensures INPCK bit is 0 (disables input parity checking)
+        }
+        else
+        {
+            temp_config.c_cflag |= PARENB;                  // Sets PAREND bit to 1 (enables parity generation and detection)
+            if(uart_devices[i].parity == 1)
+            {
+                temp_config.c_cflag &= (tcflag_t)~(PARODD); // Ensures PARODD bit is 0 (sets parity to even)
+            }
+            else
+            {
+                temp_config.c_cflag |= PARODD;              // Sets PARODD bit to 1 (sets parity to odd)
+            }
+            temp_config.c_iflag |= INPCK;                   // Sets INPCK bit to 1 (enables input parity checking)
+            temp_config.c_iflag |= IGNPAR;                  // Sets IGNPAR bit to 1 (sets framing or parity errors to be ignored)
+        }
+
+        if(cfsetispeed(&temp_config, uart_devices[i].baud) != 0 || 
+            cfsetospeed(&temp_config, &uart_devices[i]) != 0)       // These function return 0 if all went normal and -1 if an error occured
+        {
+            return -1;
+        }
+
+        uart_devices[i].fd = open(uart_devices[i].path, O_RDWR | O_NOCTTY);
+        if(!isatty(uart_devices[i].fd) || tcsetattr(uart_devices[i].fd, TCSAFLUSH, &temp_config))
+        {
+            close(uart_devices[i].fd);
+            return -1;
+        }
+    }
 }
