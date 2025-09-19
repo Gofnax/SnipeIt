@@ -1,0 +1,13 @@
+#ifndef HAL_TYPES_H
+#define HAL_TYPES_H
+
+typedef enum eHALReturnValue
+{
+    eRETURN_SUCCESS,
+    eRETURN_INVALID_DEVICE,
+    eRETURN_NULL_PARAMETER,
+    eRETURN_DEVICE_ERROR
+
+} eHALReturnValue;
+
+#endif

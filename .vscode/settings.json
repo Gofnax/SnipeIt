@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "stdint.h": "c",
-        "hal_uart_config.h": "c"
+        "hal_uart_config.h": "c",
+        "hal_types.h": "c"
     }
 }

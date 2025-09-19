@@ -46,11 +46,13 @@ typedef enum eUARTParityBit
     eEVEN_PARITY_BIT
 } eUARTParityBit;
 
+// This numeration specifies which device should be addressed.
 typedef enum eUARTDeviceNumber
 {
     eUART0_DEVICE,
     eUART1_DEVICE,
-    eUART2_DEVICE
+    eUART2_DEVICE,
+    eUART_DEVICE_COUNT
 } eUARTDeviceNumber;
 
 typedef enum eUARTConfig

@@ -1,25 +1,30 @@
 #ifndef HAL_UART_H
 #define HAL_UART_H
 
+#include "../hal_types.h"
+
 /**
  * @brief   Sets the UART devices configuration.
  * @details Sets the UART devices according to configuration specified
  *          in 'hal_uart_config.h'. and opens them for communication,
  * @returns 0 on success. -1 on failure or error.
  */
-int hal_uart_init();
+eHALReturnValue hal_uart_init(void);
 
 /**
  * @brief   Read in blocking mode.
  * @details Reads 'count' bytes from the device associated with 'device_index'
  *          into 'buf'.
- * @param   device_index An index associated with a UART device. This index
- *          specifies which device should be addressed.
+ * @param   device_index A value from @ref eUARTDeviceNumber.
  * @param   buf A pointer to the receive buffer.
  * @param   count The number of bytes to read from the device.
- * @returns 0 on success. -1 on failure or error.
+ * @returns A value from @ref eHALReturnValues.
+ * @retval  eRETURN_SUCCESS         successful execution
+ * @retval  eRETURN_INVALID_DEVICE  device is not from @ref eUARTDeviceNumber
+ * @retval  eRETURN_NULL_PARAMETER  buf is NULL
+ * @retval  eRETURN_DEVICE_ERROR    internal read failed
  */
-int hal_uart_read(int device_index, void* buf, size_t count);
+eHALReturnValue hal_uart_read(uint32_t device_index, void* buf, size_t count);
 
 /**
  * @brief   Write in blocking mode.
@@ -31,6 +36,6 @@ int hal_uart_read(int device_index, void* buf, size_t count);
  * @param   count The number of bytes to written to the device.
  * @returns 0 on success. -1 on failure or error. 
  */
-int hal_uart_write(int device_index, void* buf, size_t count);
+eHALReturnValue hal_uart_write(uint32_t device_index, const void* buf, size_t count);
 
 #endif

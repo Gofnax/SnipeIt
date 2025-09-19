@@ -19,21 +19,44 @@
 /* User Libraries */
 #include "hal_uart_config.h"
 
-#define NUM_UART_DEVICES 3
-
 typedef struct
 {
-    int         fd;             /** File descriptor for the UART device */
     char*       path;           /** Path to the UART device, e.g. "/dev/ttyAMA0" */
+    int         fd;             /** File descriptor for the UART device */
     speed_t     baud;           /** Baud rate or BPS for the device communication */
     tcflag_t    word_size;      /** Word size (5-8 bits) */
-    uint8_t     stop_bits;      /** Single or Double stop bits */
-    uint8_t     parity;         /** Parity bits in use (None, Even, or Odd) */
+    uint16_t    stop_bits;      /** Single or Double stop bits */
+    uint16_t    parity;         /** Parity bits in use (None, Even, or Odd) */
 } UARTDevice;
 
-static UARTDevice uart_devices[NUM_UART_DEVICES];
+static UARTDevice uart_devices[eUART_DEVICE_COUNT] = {
+    [eUART0_DEVICE] = {
+        .path = "/dev/ttyAMA0",
+        .fd = -1,
+        .baud = eUART0_BAUD_CONFIG,
+        .word_size = eUART0_BITS_PER_BYTE_CONFIG,
+        .stop_bits = eUART0_STOP_BIT_CONFIG,
+        .parity = eUART0_PARITY_BIT_CONFIG
+    },
+    [eUART1_DEVICE] = {
+        .path = "/dev/ttyAMA1",
+        .fd = -1,
+        .baud = eUART1_BAUD_CONFIG,
+        .word_size = eUART1_BITS_PER_BYTE_CONFIG,
+        .stop_bits = eUART1_STOP_BIT_CONFIG,
+        .parity = eUART1_PARITY_BIT_CONFIG
+    },
+    [eUART2_DEVICE] = {
+        .path = "/dev/ttyAMA2",
+        .fd = -1,
+        .baud = eUART2_BAUD_CONFIG,
+        .word_size = eUART2_BITS_PER_BYTE_CONFIG,
+        .stop_bits = eUART2_STOP_BIT_CONFIG,
+        .parity = eUART2_PARITY_BIT_CONFIG
+    }
+};
 
-int hal_uart_init()
+eHALReturnValue hal_uart_init(void)
 {
     const speed_t baud_options[] = {
         B0, B50, B75, B110, B134,
@@ -44,53 +67,34 @@ int hal_uart_init()
 
     const tcflag_t word_size_options[] = { CS5, CS6, CS7, CS8 };
 
-    const uint8_t stop_bits_options[] = { 0, 1 };      // relates to CSTOPB flag; 0 - single bit; 1 - double bits
-
-    const uint8_t parity_options[] = { 0, 1, 2 };      // relates to PARENB and PARODD flags; 0 - none; 1 - even; 2 - odd
-
-    uart_devices[eUART0_DEVICE].fd = 0;
-    uart_devices[eUART0_DEVICE].path = "/dev/ttyAMA0";
-    uart_devices[eUART0_DEVICE].baud = baud_options[eUART0_BAUD_CONFIG];
-    uart_devices[eUART0_DEVICE].word_size = word_size_options[eUART0_BITS_PER_BYTE_CONFIG];
-    uart_devices[eUART0_DEVICE].stop_bits = stop_bits_options[eUART0_STOP_BIT_CONFIG];
-    uart_devices[eUART0_DEVICE].parity = parity_options[eUART0_PARITY_BIT_CONFIG];
-
-    uart_devices[eUART1_DEVICE].fd = 0;
-    uart_devices[eUART1_DEVICE].path = "/dev/ttyAMA1";
-    uart_devices[eUART1_DEVICE].baud = baud_options[eUART1_BAUD_CONFIG];
-    uart_devices[eUART1_DEVICE].word_size = word_size_options[eUART1_BITS_PER_BYTE_CONFIG];
-    uart_devices[eUART1_DEVICE].stop_bits = stop_bits_options[eUART1_STOP_BIT_CONFIG];
-    uart_devices[eUART1_DEVICE].parity = parity_options[eUART1_PARITY_BIT_CONFIG];
-
-    uart_devices[eUART2_DEVICE].fd = 0;
-    uart_devices[eUART2_DEVICE].path = "/dev/ttyAMA2";
-    uart_devices[eUART2_DEVICE].baud = baud_options[eUART2_BAUD_CONFIG];
-    uart_devices[eUART2_DEVICE].word_size = word_size_options[eUART2_BITS_PER_BYTE_CONFIG];
-    uart_devices[eUART2_DEVICE].stop_bits = stop_bits_options[eUART2_STOP_BIT_CONFIG];
-    uart_devices[eUART2_DEVICE].parity = parity_options[eUART2_PARITY_BIT_CONFIG];
-
     // Here we set the baud, flags (we don't need any), word size, stop bits, and parity bits for each UART device
     // All the bits configuration is done via the termios struct with its flags and the 'tcsetattr' function
     // The baud is set using 'cfsetospeed' and 'cfsetispeed' functions and the termios struct
 
-    for(int i = 0; i < NUM_UART_DEVICES; ++i)
+    for(uint32_t device_index = 0; device_index < eUART_DEVICE_COUNT; ++device_index)
     {
         struct termios temp_config = { 0 };
 
-        temp_config.c_cflag |= CLOCAL | CREAD; // Prevents waiting for modem connection and enables reading input from the terminal
+        // Prevents waiting for modem connection and enables reading input from the terminal
+        temp_config.c_cflag = CLOCAL | CREAD;
 
-        temp_config.c_cflag |= uart_devices[i].word_size;   // Sets the bits per byte
+        // Sets the bits per byte
+        temp_config.c_cflag |= word_size_options[uart_devices[device_index].word_size];
 
-        if(uart_devices[i].stop_bits == 0)
+        // Determine stop bit count
+        if(uart_devices[device_index].stop_bits == eSINGLE_STOP_BIT)
         {
-        temp_config.c_cflag &= (tcflag_t)~(CSTOPB);  // Ensures CSTOPB bit is 0  (sets use of one stop bit)
+            // Ensures CSTOPB bit is 0  (sets use of one stop bit)
+            temp_config.c_cflag &= (tcflag_t)~(CSTOPB);
         }
         else
         {
-            temp_config.c_cflag |= CSTOPB;              // Sets CSTOPB bit to 1 (sets use of two stop bits)
+            // Sets CSTOPB bit to 1 (sets use of two stop bits)
+            temp_config.c_cflag |= CSTOPB;
         }
 
-        if(uart_devices[i].parity == 0)
+        // Determine parity bit 
+        if(uart_devices[device_index].parity == eNO_PARITY_BIT)
         {
             temp_config.c_cflag &= (tcflag_t)~(PARENB);     // Ensures PAREND bit is 0 (disables parity generation and detection)
             temp_config.c_iflag &= (tcflag_t)~(INPCK);      // Ensures INPCK bit is 0 (disables input parity checking)
@@ -98,7 +102,7 @@ int hal_uart_init()
         else
         {
             temp_config.c_cflag |= PARENB;                  // Sets PAREND bit to 1 (enables parity generation and detection)
-            if(uart_devices[i].parity == 1)
+            if(uart_devices[device_index].parity == eEVEN_PARITY_BIT)
             {
                 temp_config.c_cflag &= (tcflag_t)~(PARODD); // Ensures PARODD bit is 0 (sets parity to even)
             }
@@ -110,79 +114,100 @@ int hal_uart_init()
             temp_config.c_iflag |= IGNPAR;                  // Sets IGNPAR bit to 1 (sets framing or parity errors to be ignored)
         }
 
-        if(cfsetispeed(&temp_config, uart_devices[i].baud) != 0 || 
-            cfsetospeed(&temp_config, &uart_devices[i]) != 0)       // These function return 0 if all went normal and -1 if an error occured
+        // These function return 0 if all went normal and -1 if an error occured
+        if(cfsetispeed(&temp_config, baud_options[uart_devices[device_index].baud]) < 0 || 
+            cfsetospeed(&temp_config, baud_options[uart_devices[device_index].baud]) < 0)       
         {
-            return -1;
+            return eRETURN_DEVICE_ERROR;
         }
 
-        uart_devices[i].fd = open(uart_devices[i].path, O_RDWR | O_NOCTTY);
-        if(!isatty(uart_devices[i].fd) || tcsetattr(uart_devices[i].fd, TCSAFLUSH, &temp_config))
+        uart_devices[device_index].fd = open(uart_devices[device_index].path, O_RDWR | O_NOCTTY);
+        if(uart_devices[device_index].fd < 0)
         {
-            close(uart_devices[i].fd);
-            return -1;
+            return eRETURN_DEVICE_ERROR;
+        }
+
+        if(!isatty(uart_devices[device_index].fd))
+        {
+            close(uart_devices[device_index].fd);
+            return eRETURN_DEVICE_ERROR;
+        }
+
+        if(tcsetattr(uart_devices[device_index].fd, TCSAFLUSH, &temp_config))
+        {
+            return eRETURN_DEVICE_ERROR;
         }
     }
 
-    return 0;
+    return eRETURN_SUCCESS;
 }
 
-int hal_uart_read(int device_index, void* buf, size_t count)
+eHALReturnValue hal_uart_read(uint32_t device_index, void* buf, size_t count)
 {
-    if(device_index < 0 || device_index > NUM_UART_DEVICES || buf == NULL)
+    if(device_index > eUART_DEVICE_COUNT)
     {
-        return -1;
+        return eRETURN_INVALID_DEVICE;
     }
 
-    int fd = uart_devices[device_index].fd;
+    if(buf == NULL)
+    {
+        return eRETURN_NULL_PARAMETER;
+    }
+
     size_t bytes_read = 0;
     while(count > 0)
     {
-        bytes_read = read(fd, buf, count);
+        bytes_read = read(uart_devices[device_index].fd, buf, count);
         if(bytes_read < 0)
         {
-            if(errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)   //These errors allow retry of reading
+            //These errors allow retry of reading
+            if(errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)
             {
                 continue;
             }
             else
             {
-                return -1;
+                return eRETURN_DEVICE_ERROR;
             }
         }
         buf += bytes_read;
         count -= bytes_read;
     }
 
-    return 0;
+    return eRETURN_SUCCESS;
 }
 
-int hal_uart_write(int device_index, void* buf, size_t count)
+eHALReturnValue hal_uart_write(uint32_t device_index, const void* buf, size_t count)
 {
-    if(device_index < 0 || device_index > NUM_UART_DEVICES || buf == NULL)
+    if(device_index > eUART_DEVICE_COUNT)
     {
-        return -1;
+        return eRETURN_INVALID_DEVICE;
     }
 
-    int fd = uart_devices[device_index].fd;
+    if(buf == NULL)
+    {
+        return eRETURN_NULL_PARAMETER;
+    }
+
     size_t bytes_written = 0;
     while(count > 0)
     {
-        bytes_written = write(fd, buf, count);
+        bytes_written = write(uart_devices[device_index].fd, buf, count);
         if(bytes_written < 0)
         {
-            if(errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)   //These errors allow retry of reading
+            //These errors allow retry of reading
+            if(errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)
             {
                 continue;
             }
             else
             {
-                return -1;
+                return eRETURN_INVALID_DEVICE;
             }
         }
         buf += bytes_written;
         count -= bytes_written;
     }
 
-    return 0;
+    return eRETURN_SUCCESS;
 }
