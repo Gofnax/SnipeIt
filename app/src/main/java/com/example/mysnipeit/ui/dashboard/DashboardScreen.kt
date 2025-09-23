@@ -2,6 +2,9 @@ package com.example.mysnipeit.ui.dashboard
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -10,6 +13,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.Color
 import com.example.mysnipeit.data.models.SensorData
 import com.example.mysnipeit.data.models.DetectedTarget
 import com.example.mysnipeit.data.models.ShootingSolution
@@ -25,251 +29,373 @@ fun DashboardScreen(
     systemStatus: SystemStatus,
     onConnectClick: () -> Unit,
     onDisconnectClick: () -> Unit,
-    onBackClick: () -> Unit = {}
+    onBackClick: () -> Unit = {},
+    onMenuClick: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MilitaryDarkBackground)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Header with title and connection status
-        HeaderSection(
+        // Top HUD Bar - Compact data display
+        TopHudBar(
+            sensorData = sensorData,
+            shootingSolution = shootingSolution,
             systemStatus = systemStatus,
+            onBackClick = onBackClick,
+            onMenuClick = onMenuClick,
             onConnectClick = onConnectClick,
-            onDisconnectClick = onDisconnectClick,
-            onBackClick = onBackClick
+            onDisconnectClick = onDisconnectClick
         )
 
-        Row(
-            modifier = Modifier.fillMaxSize(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        // Main Video Feed - 80% of screen
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f) // Takes remaining space
         ) {
-            // Left side - Video feed placeholder
             VideoFeedSection(
-                modifier = Modifier.weight(2f),
-                detectedTargets = detectedTargets
+                detectedTargets = detectedTargets,
+                modifier = Modifier.fillMaxSize()
             )
-
-            // Right side - Data panels
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // Shooting solution
-                ShootingSolutionPanel(shootingSolution)
-
-                // Sensor data
-                SensorDataPanel(sensorData)
-
-                // Targets list
-                TargetsPanel(detectedTargets)
-            }
         }
     }
 }
 
 @Composable
-private fun HeaderSection(
+private fun TopHudBar(
+    sensorData: SensorData?,
+    shootingSolution: ShootingSolution?,
     systemStatus: SystemStatus,
+    onBackClick: () -> Unit,
+    onMenuClick: () -> Unit,
     onConnectClick: () -> Unit,
-    onDisconnectClick: () -> Unit,
-    onBackClick: () -> Unit = {}
+    onDisconnectClick: () -> Unit
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(80.dp),
+        color = MilitaryCardBackground.copy(alpha = 0.95f)
     ) {
-        // Back button + Title
         Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Button(
-                onClick = onBackClick,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MilitaryBorderColor
-                )
-            ) {
-                Text(
-                    text = "← BACK",
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Text(
-                text = "SNIPER SPOTTER SYSTEM",
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace,
-                color = MilitaryAccentGreen
-            )
-        }
-
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Connection status indicator
-            ConnectionStatusIndicator(systemStatus.connectionStatus)
-
-            // Battery indicator
-            systemStatus.batteryLevel?.let { battery ->
-                Text(
-                    text = "$battery%",
-                    color = if (battery > 20) MilitaryAccentGreen else MilitaryDangerRed,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            // Connection button
-            Button(
-                onClick = if (systemStatus.connectionStatus == ConnectionState.CONNECTED) {
-                    onDisconnectClick
-                } else {
-                    onConnectClick
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (systemStatus.connectionStatus == ConnectionState.CONNECTED) {
-                        MilitaryDangerRed
-                    } else {
-                        MilitaryAccentGreen
-                    }
-                )
+            // Left section - Navigation
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    text = if (systemStatus.connectionStatus == ConnectionState.CONNECTED) "DISCONNECT" else "CONNECT",
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold
-                )
+                // Back button
+                IconButton(
+                    onClick = onBackClick,
+                    modifier = Modifier
+                        .size(32.dp)
+                        .background(
+                            MilitaryBorderColor,
+                            RoundedCornerShape(4.dp)
+                        )
+                ) {
+                    Text(
+                        text = "←",
+                        color = MilitaryTextPrimary,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                // Menu button
+                IconButton(
+                    onClick = onMenuClick,
+                    modifier = Modifier
+                        .size(32.dp)
+                        .background(
+                            MilitaryBorderColor,
+                            RoundedCornerShape(4.dp)
+                        )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Menu,
+                        contentDescription = "Menu",
+                        tint = MilitaryTextPrimary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+
+            // Center section - Shooting data
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (shootingSolution != null) {
+                    HudDataBox(
+                        label = "AZ",
+                        value = "${shootingSolution.azimuth.toInt()}°",
+                        isActive = true
+                    )
+                    HudDataBox(
+                        label = "EL",
+                        value = "${shootingSolution.elevation.toInt()}°",
+                        isActive = true
+                    )
+                    HudDataBox(
+                        label = "CONF",
+                        value = "${(shootingSolution.confidence * 100).toInt()}%",
+                        isActive = shootingSolution.confidence > 0.7f
+                    )
+                } else {
+                    HudDataBox(label = "AZ", value = "--", isActive = false)
+                    HudDataBox(label = "EL", value = "--", isActive = false)
+                    HudDataBox(label = "CONF", value = "--", isActive = false)
+                }
+            }
+
+            // Right section - Environmental data
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Environmental data
+                if (sensorData != null) {
+                    HudDataBox(
+                        label = "TEMP",
+                        value = "${sensorData.temperature.toInt()}°C",
+                        isActive = true
+                    )
+                    HudDataBox(
+                        label = "HUM",
+                        value = "${sensorData.humidity.toInt()}%",
+                        isActive = true
+                    )
+                    HudDataBox(
+                        label = "W.SPD",
+                        value = "${sensorData.windSpeed.toInt()}m/s",
+                        isActive = true
+                    )
+                    HudDataBox(
+                        label = "W.DIR",
+                        value = "${sensorData.windDirection.toInt()}°",
+                        isActive = true
+                    )
+                    HudDataBox(
+                        label = "RNG",
+                        value = "${sensorData.rangefinderDistance.toInt()}m",
+                        isActive = true
+                    )
+                } else {
+                    HudDataBox(label = "TEMP", value = "--", isActive = false)
+                    HudDataBox(label = "HUM", value = "--", isActive = false)
+                    HudDataBox(label = "W.SPD", value = "--", isActive = false)
+                    HudDataBox(label = "W.DIR", value = "--", isActive = false)
+                    HudDataBox(label = "RNG", value = "--", isActive = false)
+                }
+            }
+
+            // Far right section - Status indicators
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Connection status
+                ConnectionStatusCompact(systemStatus)
+
+                // Battery level
+                systemStatus.batteryLevel?.let { battery ->
+                    HudDataBox(
+                        label = "BAT",
+                        value = "$battery%",
+                        isActive = battery > 20
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun VideoFeedSection(
-    modifier: Modifier = Modifier,
-    detectedTargets: List<DetectedTarget>
+private fun HudDataBox(
+    label: String,
+    value: String,
+    isActive: Boolean
 ) {
-    Card(
-        modifier = modifier.fillMaxHeight(),
-        colors = CardDefaults.cardColors(containerColor = MilitaryCardBackground),
-        border = androidx.compose.foundation.BorderStroke(2.dp, MilitaryAccentGreen)
-    ) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            // Placeholder for video feed
-            Text(
-                text = "VIDEO FEED\n\nTargets Detected: ${detectedTargets.size}",
-                color = MilitaryTextSecondary,
-                fontFamily = FontFamily.Monospace,
-                fontSize = 18.sp,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .background(
+                if (isActive) MilitaryAccentGreen.copy(alpha = 0.3f) else Color.Transparent,
+                RoundedCornerShape(4.dp)
             )
-        }
+            .padding(horizontal = 6.dp, vertical = 2.dp)
+    ) {
+        Text(
+            text = label,
+            color = MilitaryTextSecondary,
+            fontSize = 9.sp,
+            fontFamily = FontFamily.Monospace,
+            fontWeight = FontWeight.Normal
+        )
+        Text(
+            text = value,
+            color = if (isActive) MilitaryTextPrimary else MilitaryTextSecondary,
+            fontSize = 11.sp,
+            fontFamily = FontFamily.Monospace,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 
 @Composable
-private fun ConnectionStatusIndicator(status: ConnectionState) {
-    val color = when (status) {
+private fun ConnectionStatusCompact(systemStatus: SystemStatus) {
+    val statusColor = when (systemStatus.connectionStatus) {
         ConnectionState.CONNECTED -> StatusConnected
         ConnectionState.CONNECTING -> StatusConnecting
         ConnectionState.DISCONNECTED -> StatusDisconnected
         ConnectionState.ERROR -> StatusError
     }
 
+    val statusText = when (systemStatus.connectionStatus) {
+        ConnectionState.CONNECTED -> "CONN"
+        ConnectionState.CONNECTING -> "..."
+        ConnectionState.DISCONNECTED -> "DISC"
+        ConnectionState.ERROR -> "ERR"
+    }
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier
+            .background(
+                statusColor.copy(alpha = 0.3f),
+                RoundedCornerShape(4.dp)
+            )
+            .padding(horizontal = 6.dp, vertical = 4.dp)
     ) {
         Box(
             modifier = Modifier
-                .size(12.dp)
-                .background(color, androidx.compose.foundation.shape.CircleShape)
+                .size(6.dp)
+                .background(statusColor, androidx.compose.foundation.shape.CircleShape)
         )
         Text(
-            text = status.name,
-            color = color,
+            text = statusText,
+            color = MilitaryTextPrimary,
+            fontSize = 9.sp,
             fontFamily = FontFamily.Monospace,
-            fontWeight = FontWeight.Bold,
-            fontSize = 12.sp
+            fontWeight = FontWeight.Bold
         )
     }
 }
 
 @Composable
-private fun ShootingSolutionPanel(solution: ShootingSolution?) {
-    MilitaryPanel(title = "SHOOTING SOLUTION") {
-        if (solution != null) {
-            Text("Azimuth: ${String.format("%.1f°", solution.azimuth)}", color = MilitaryTextPrimary)
-            Text("Elevation: ${String.format("%.1f°", solution.elevation)}", color = MilitaryTextPrimary)
-            Text("Confidence: ${String.format("%.0f%%", solution.confidence * 100)}", color = MilitaryTextPrimary)
-        } else {
-            Text("NO SOLUTION", color = MilitaryTextSecondary)
-        }
-    }
-}
-
-@Composable
-private fun SensorDataPanel(data: SensorData?) {
-    MilitaryPanel(title = "ENVIRONMENTAL") {
-        if (data != null) {
-            Text("Temp: ${String.format("%.1f°C", data.temperature)}", color = MilitaryTextPrimary)
-            Text("Humidity: ${String.format("%.1f%%", data.humidity)}", color = MilitaryTextPrimary)
-            Text("Wind: ${String.format("%.1f m/s @ %.0f°", data.windSpeed, data.windDirection)}", color = MilitaryTextPrimary)
-            Text("Range: ${String.format("%.0fm", data.rangefinderDistance)}", color = MilitaryTextPrimary)
-        } else {
-            Text("NO DATA", color = MilitaryTextSecondary)
-        }
-    }
-}
-
-@Composable
-private fun TargetsPanel(targets: List<DetectedTarget>) {
-    MilitaryPanel(title = "TARGETS") {
-        if (targets.isNotEmpty()) {
-            targets.take(3).forEach { target ->
-                Text(
-                    text = "${target.targetType.name} - ${String.format("%.0fm", target.distance)}",
-                    color = MilitaryTextPrimary,
-                    fontSize = 12.sp
-                )
-            }
-        } else {
-            Text("NO TARGETS", color = MilitaryTextSecondary)
-        }
-    }
-}
-
-@Composable
-private fun MilitaryPanel(
-    title: String,
-    content: @Composable ColumnScope.() -> Unit
+private fun VideoFeedSection(
+    detectedTargets: List<DetectedTarget>,
+    modifier: Modifier = Modifier
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = MilitaryCardBackground),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MilitaryBorderColor)
+        modifier = modifier,
+        colors = CardDefaults.cardColors(containerColor = Color.Black),
+        shape = RoundedCornerShape(0.dp) // No rounded corners for tactical look
     ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
         ) {
+            // Placeholder for video feed with tactical styling
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Crosshair symbol
+                Text(
+                    text = "⌖",
+                    color = MilitaryTextSecondary,
+                    fontSize = 48.sp
+                )
+
+                Text(
+                    text = "VIDEO FEED",
+                    color = MilitaryTextSecondary,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Text(
+                    text = "TARGETS DETECTED: ${detectedTargets.size}",
+                    color = if (detectedTargets.isNotEmpty()) MilitaryAccentGreen else MilitaryTextSecondary,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 12.sp
+                )
+
+                // Field of view indicator
+                Text(
+                    text = "FOV: 45° × 30°",
+                    color = MilitaryTextSecondary,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 10.sp
+                )
+
+                Text(
+                    text = "ZOOM: 4.5×",
+                    color = MilitaryTextSecondary,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 10.sp
+                )
+            }
+
+            // Corner status indicators
             Text(
-                text = title,
-                color = MilitaryAccentGreen,
+                text = "LIVE",
+                color = StatusConnected,
+                fontSize = 10.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,
-                fontSize = 14.sp
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(16.dp)
+                    .background(
+                        Color.Black.copy(alpha = 0.7f),
+                        RoundedCornerShape(4.dp)
+                    )
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
             )
-            content()
+
+            Text(
+                text = "1920×1080",
+                color = MilitaryTextSecondary,
+                fontSize = 8.sp,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(16.dp)
+                    .background(
+                        Color.Black.copy(alpha = 0.7f),
+                        RoundedCornerShape(4.dp)
+                    )
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
+            )
+
+            if (detectedTargets.isNotEmpty()) {
+                Text(
+                    text = "TARGET LOCK AVAILABLE",
+                    color = MilitaryAccentGreen,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(16.dp)
+                        .background(
+                            MilitaryAccentGreen.copy(alpha = 0.2f),
+                            RoundedCornerShape(4.dp)
+                        )
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+            }
         }
     }
 }

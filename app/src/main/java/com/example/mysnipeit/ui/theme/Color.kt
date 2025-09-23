@@ -2,23 +2,23 @@ package com.example.mysnipeit.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Military color palette
-val MilitaryDarkBackground = Color(0xFF0D1B2A)
-val MilitaryCardBackground = Color(0xFF1B263B)
-val MilitaryAccentGreen = Color(0xFF00FF41)
-val MilitaryWarningAmber = Color(0xFFFFB000)
-val MilitaryDangerRed = Color(0xFFFF073A)
-val MilitaryTextPrimary = Color(0xFFE0E1DD)
-val MilitaryTextSecondary = Color(0xFF778DA9)
-val MilitaryBorderColor = Color(0xFF415A77)
+// Subdued military color palette for stealth operations
+val MilitaryDarkBackground = Color(0xFF0A0F0A) // Very dark green-black
+val MilitaryCardBackground = Color(0xFF1A201A) // Dark olive
+val MilitaryAccentGreen = Color(0xFF2D4A2D) // Muted dark green
+val MilitaryWarningAmber = Color(0xFF4A3D1A) // Dark amber/brown
+val MilitaryDangerRed = Color(0xFF3D1A1A) // Dark maroon
+val MilitaryTextPrimary = Color(0xFFB8C5B8) // Muted light green
+val MilitaryTextSecondary = Color(0xFF6B7A6B) // Darker muted green
+val MilitaryBorderColor = Color(0xFF2A3A2A) // Dark border
 
-// Status colors
-val StatusConnected = Color(0xFF00C851)
-val StatusDisconnected = Color(0xFFFF4444)
-val StatusConnecting = Color(0xFFFFBB33)
-val StatusError = Color(0xFFFF073A)
+// Subdued status colors
+val StatusConnected = Color(0xFF1F3D1F) // Very dark green
+val StatusDisconnected = Color(0xFF3D1F1F) // Very dark red
+val StatusConnecting = Color(0xFF3D3D1F) // Very dark yellow
+val StatusError = Color(0xFF3D1A1A) // Very dark red
 
-// Target colors
-val TargetActive = Color(0xFFFF073A)
-val TargetInactive = Color(0xFF778DA9)
-val TargetSelected = Color(0xFF00FF41)
+// Subdued target colors
+val TargetActive = Color(0xFF3D2A2A) // Dark red-brown
+val TargetInactive = Color(0xFF2A3A2A) // Dark gray-green
+val TargetSelected = Color(0xFF2A3D2A) // Dark green

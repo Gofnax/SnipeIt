@@ -55,6 +55,7 @@ fun SniperApp(viewModel: SniperViewModel) {
                 }
             )
         }
+
         AppScreen.DASHBOARD -> {
             DashboardScreen(
                 sensorData = sensorData,
@@ -69,6 +70,11 @@ fun SniperApp(viewModel: SniperViewModel) {
                 },
                 onBackClick = {
                     viewModel.goBackToDeviceSelection()
+                },
+                onMenuClick = {
+                    // TODO: Implement menu functionality later
+                    // For now, just log the click
+                    android.util.Log.d("Dashboard", "Menu clicked")
                 }
             )
         }
