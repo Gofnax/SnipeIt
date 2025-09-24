@@ -55,7 +55,7 @@ int main(void)
 
     if(tcsetattr(uart_fd, TCSAFLUSH, &tty) == -1)
 	{
-        close(uart_fd);	// here we put close because Dani doesn't like 'em
+        close(uart_fd);
 		return 1;
 	}
 
@@ -63,7 +63,6 @@ int main(void)
 	if(timer_fd == -1)
 	{
 		perror("very sad");
-		// here we didn't put close because Dani hit me
 		return 1;
 	}
 
