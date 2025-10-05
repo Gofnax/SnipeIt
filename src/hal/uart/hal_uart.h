@@ -1,9 +1,12 @@
 #ifndef HAL_UART_H
 #define HAL_UART_H
 
-#include "../hal_types.h"
+/* Standard Libraries */
 #include <stdint.h>
 #include <stddef.h>
+
+/* User Libraries */
+#include "../hal_types.h"
 
 /**
  * @brief   Sets the UART devices configuration.
