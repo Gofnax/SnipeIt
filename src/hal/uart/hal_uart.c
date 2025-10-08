@@ -142,22 +142,22 @@ eHALReturnValue hal_uart_init(void)
     return eRETURN_SUCCESS;
 }
 
-eHALReturnValue hal_uart_read(uint32_t device_index, void* buf, size_t count)
+eHALReturnValue hal_uart_read(uint32_t device_index, void* buffer, size_t num_bytes)
 {
     if(device_index > eUART_DEVICE_COUNT)
     {
         return eRETURN_INVALID_DEVICE;
     }
 
-    if(buf == NULL)
+    if(buffer == NULL)
     {
         return eRETURN_NULL_PARAMETER;
     }
 
     size_t bytes_read = 0;
-    while(count > 0)
+    while(num_bytes > 0)
     {
-        bytes_read = read(uart_devices[device_index].fd, buf, count);
+        bytes_read = read(uart_devices[device_index].fd, buffer, num_bytes);
         if(bytes_read < 0)
         {
             //These errors allow retry of reading
@@ -170,29 +170,29 @@ eHALReturnValue hal_uart_read(uint32_t device_index, void* buf, size_t count)
                 return eRETURN_DEVICE_ERROR;
             }
         }
-        buf += bytes_read;
-        count -= bytes_read;
+        buffer += bytes_read;
+        num_bytes -= bytes_read;
     }
 
     return eRETURN_SUCCESS;
 }
 
-eHALReturnValue hal_uart_write(uint32_t device_index, const void* buf, size_t count)
+eHALReturnValue hal_uart_write(uint32_t device_index, const void* buffer, size_t num_bytes)
 {
     if(device_index > eUART_DEVICE_COUNT)
     {
         return eRETURN_INVALID_DEVICE;
     }
 
-    if(buf == NULL)
+    if(buffer == NULL)
     {
         return eRETURN_NULL_PARAMETER;
     }
 
     size_t bytes_written = 0;
-    while(count > 0)
+    while(num_bytes > 0)
     {
-        bytes_written = write(uart_devices[device_index].fd, buf, count);
+        bytes_written = write(uart_devices[device_index].fd, buffer, num_bytes);
         if(bytes_written < 0)
         {
             //These errors allow retry of reading
@@ -205,8 +205,8 @@ eHALReturnValue hal_uart_write(uint32_t device_index, const void* buf, size_t co
                 return eRETURN_INVALID_DEVICE;
             }
         }
-        buf += bytes_written;
-        count -= bytes_written;
+        buffer += bytes_written;
+        num_bytes -= bytes_written;
     }
 
     return eRETURN_SUCCESS;

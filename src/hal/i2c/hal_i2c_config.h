@@ -15,7 +15,7 @@ typedef enum eI2CDeviceNumber
 
 typedef enum eI2CAddress
 {
-    eI2C0_ADDRESS = 0x08
+    eI2C0_ADDRESS = 0x08    // Normally in range 0x08-0x77 for 7 bit addresses
 } eI2CAddress;
 
 typedef enum eI2CConfig
