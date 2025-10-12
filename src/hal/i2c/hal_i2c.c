@@ -103,7 +103,17 @@ eHALReturnValue hal_i2c_transfer(uint32_t device_index, const struct i2c_msg* me
         return eRETURN_INVALID_PARAMETER;
     }
     
-    
+    struct i2c_rdwr_ioctl_data transfer = {
+        .msgs = messages,
+        .nmsgs = count
+    };
+
+    if(ioctl(i2c_devices[device_index].fd, I2C_RDWR, &transfer) < 0)
+    {
+        return eRETURN_DEVICE_ERROR;
+    }
+
+    return eRETURN_SUCCESS;
 }
 
 eHALReturnValue hal_i2c_write(uint32_t device_index, const void* buffer, size_t num_bytes)
@@ -148,7 +158,7 @@ eHALReturnValue hal_i2c_read(uint32_t device_index, const void* buffer, size_t n
 
     struct i2c_msg message = {
         .addr = i2c_devices[device_index].address,
-        .flags = i2c_devices[device_index].flags | I2C_M_RD,
+        .flags = i2c_devices[device_index].flags | I2C_M_RD,    // We add the READ bit to signify a read message
         .len = num_bytes,
         .buf = buffer
     };
