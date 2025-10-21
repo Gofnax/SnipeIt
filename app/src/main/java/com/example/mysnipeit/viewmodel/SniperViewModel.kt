@@ -2,28 +2,24 @@ package com.example.mysnipeit.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.mysnipeit.data.models.SensorData
-import com.example.mysnipeit.data.models.DetectedTarget
-import com.example.mysnipeit.data.models.ShootingSolution
-import com.example.mysnipeit.data.models.SystemStatus
-import com.example.mysnipeit.data.models.ConnectionState
-import com.example.mysnipeit.data.models.Device
-import com.example.mysnipeit.data.models.DeviceStatus
-import com.example.mysnipeit.data.repository.SniperRepository
+import com.example.mysnipeit.data.models.*
+import com.example.mysnipeit.data.network.RaspberryPiClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import android.util.Log
 
 class SniperViewModel : ViewModel() {
 
-    private val repository = SniperRepository() // We'll inject this later
+    // Create client directly for now
+    private val raspberryPiClient = RaspberryPiClient()
 
     // UI State
     private val _uiState = MutableStateFlow(SniperUiState())
     val uiState: StateFlow<SniperUiState> = _uiState.asStateFlow()
 
-    // Mock devices for now (replace with real discovery later)
+    // Mock devices
     private val _availableDevices = MutableStateFlow(
         listOf(
             Device(
@@ -53,76 +49,52 @@ class SniperViewModel : ViewModel() {
     private val _selectedDevice = MutableStateFlow<Device?>(null)
     val selectedDevice: StateFlow<Device?> = _selectedDevice
 
-    // Data from repository (will be connected later)
-    private val _sensorData = MutableStateFlow<SensorData?>(null)
-    val sensorData: StateFlow<SensorData?> = _sensorData
-
-    private val _detectedTargets = MutableStateFlow<List<DetectedTarget>>(emptyList())
-    val detectedTargets: StateFlow<List<DetectedTarget>> = _detectedTargets
-
-    private val _shootingSolution = MutableStateFlow<ShootingSolution?>(null)
-    val shootingSolution: StateFlow<ShootingSolution?> = _shootingSolution
-
-    private val _systemStatus = MutableStateFlow(
-        SystemStatus(
-            connectionStatus = ConnectionState.DISCONNECTED,
-            batteryLevel = null,
-            cameraStatus = false,
-            gpsStatus = false,
-            rangefinderStatus = false,
-            microphoneStatus = false,
-            lastHeartbeat = 0L
-        )
-    )
-    val systemStatus: StateFlow<SystemStatus> = _systemStatus
+    // Data from client - connect directly
+    val sensorData: StateFlow<SensorData?> = raspberryPiClient.sensorData
+    val detectedTargets: StateFlow<List<DetectedTarget>> = raspberryPiClient.detectedTargets
+    val shootingSolution: StateFlow<ShootingSolution?> = raspberryPiClient.shootingSolution
+    val systemStatus: StateFlow<SystemStatus> = raspberryPiClient.systemStatus
 
     fun selectDevice(device: Device) {
+        Log.d("SniperViewModel", "selectDevice called for: ${device.name}")
         _selectedDevice.value = device
         _uiState.value = _uiState.value.copy(
             currentScreen = AppScreen.DASHBOARD,
             selectedDeviceId = device.id
         )
-        // Start connection to the selected device
+        // Start connection
         connectToDevice(device)
     }
 
     private fun connectToDevice(device: Device) {
+        Log.d("SniperViewModel", "connectToDevice called for IP: ${device.ipAddress}")
         viewModelScope.launch {
-            _systemStatus.value = _systemStatus.value.copy(
-                connectionStatus = ConnectionState.CONNECTING
-            )
-
-            // Simulate connection process
             try {
-                // Replace with actual repository connection
-                kotlinx.coroutines.delay(2000) // Simulate connection time
-                _systemStatus.value = _systemStatus.value.copy(
-                    connectionStatus = ConnectionState.CONNECTED,
-                    batteryLevel = device.batteryLevel
-                )
+                raspberryPiClient.connect(device.ipAddress)
+                Log.d("SniperViewModel", "Connection initiated successfully")
             } catch (e: Exception) {
-                _systemStatus.value = _systemStatus.value.copy(
-                    connectionStatus = ConnectionState.ERROR
+                Log.e("SniperViewModel", "Connection failed: ${e.message}")
+                _uiState.value = _uiState.value.copy(
+                    connectionError = "Connection failed: ${e.message}"
                 )
             }
         }
     }
 
     fun scanForDevices() {
-        // Implement device scanning logic
         _uiState.value = _uiState.value.copy(isScanning = true)
 
         viewModelScope.launch {
-            // Simulate scanning
             kotlinx.coroutines.delay(3000)
             _uiState.value = _uiState.value.copy(isScanning = false)
         }
     }
 
     fun goBackToDeviceSelection() {
+        Log.d("SniperViewModel", "goBackToDeviceSelection called")
         _uiState.value = _uiState.value.copy(currentScreen = AppScreen.DEVICE_SELECTION)
         _selectedDevice.value = null
-        _systemStatus.value = _systemStatus.value.copy(connectionStatus = ConnectionState.DISCONNECTED)
+        raspberryPiClient.disconnect()
     }
 
     fun connectToSystem() {
@@ -132,11 +104,10 @@ class SniperViewModel : ViewModel() {
     }
 
     fun disconnectFromSystem() {
-        _systemStatus.value = _systemStatus.value.copy(connectionStatus = ConnectionState.DISCONNECTED)
+        raspberryPiClient.disconnect()
     }
 }
 
-// UI State data class
 data class SniperUiState(
     val currentScreen: AppScreen = AppScreen.DEVICE_SELECTION,
     val isScanning: Boolean = false,

@@ -20,6 +20,7 @@ import com.example.mysnipeit.data.models.ShootingSolution
 import com.example.mysnipeit.data.models.SystemStatus
 import com.example.mysnipeit.data.models.ConnectionState
 import com.example.mysnipeit.ui.theme.*
+import android.util.Log
 
 @Composable
 fun DashboardScreen(
@@ -295,107 +296,11 @@ private fun VideoFeedSection(
     detectedTargets: List<DetectedTarget>,
     modifier: Modifier = Modifier
 ) {
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = Color.Black),
-        shape = RoundedCornerShape(0.dp) // No rounded corners for tactical look
-    ) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            // Placeholder for video feed with tactical styling
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                // Crosshair symbol
-                Text(
-                    text = "⌖",
-                    color = MilitaryTextSecondary,
-                    fontSize = 48.sp
-                )
-
-                Text(
-                    text = "VIDEO FEED",
-                    color = MilitaryTextSecondary,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Text(
-                    text = "TARGETS DETECTED: ${detectedTargets.size}",
-                    color = if (detectedTargets.isNotEmpty()) MilitaryAccentGreen else MilitaryTextSecondary,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 12.sp
-                )
-
-                // Field of view indicator
-                Text(
-                    text = "FOV: 45° × 30°",
-                    color = MilitaryTextSecondary,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 10.sp
-                )
-
-                Text(
-                    text = "ZOOM: 4.5×",
-                    color = MilitaryTextSecondary,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 10.sp
-                )
-            }
-
-            // Corner status indicators
-            Text(
-                text = "LIVE",
-                color = StatusConnected,
-                fontSize = 10.sp,
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(16.dp)
-                    .background(
-                        Color.Black.copy(alpha = 0.7f),
-                        RoundedCornerShape(4.dp)
-                    )
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
-            )
-
-            Text(
-                text = "1920×1080",
-                color = MilitaryTextSecondary,
-                fontSize = 8.sp,
-                fontFamily = FontFamily.Monospace,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(16.dp)
-                    .background(
-                        Color.Black.copy(alpha = 0.7f),
-                        RoundedCornerShape(4.dp)
-                    )
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
-            )
-
-            if (detectedTargets.isNotEmpty()) {
-                Text(
-                    text = "TARGET LOCK AVAILABLE",
-                    color = MilitaryAccentGreen,
-                    fontSize = 10.sp,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(16.dp)
-                        .background(
-                            MilitaryAccentGreen.copy(alpha = 0.2f),
-                            RoundedCornerShape(4.dp)
-                        )
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                )
-            }
-        }
-    }
+    TacticalVideoPlayer(
+        detectedTargets = detectedTargets,
+        onTargetClick = { target ->
+            android.util.Log.d("Dashboard", "Target selected: ${target.targetType} at ${target.distance}m")
+        },
+        modifier = modifier
+    )
 }
