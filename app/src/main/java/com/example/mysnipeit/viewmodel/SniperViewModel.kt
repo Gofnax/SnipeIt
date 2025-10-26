@@ -12,14 +12,12 @@ import android.util.Log
 
 class SniperViewModel : ViewModel() {
 
-    // Create client directly for now
     private val raspberryPiClient = RaspberryPiClient()
 
-    // UI State
     private val _uiState = MutableStateFlow(SniperUiState())
     val uiState: StateFlow<SniperUiState> = _uiState.asStateFlow()
 
-    // Mock devices
+    // All 4 devices
     private val _availableDevices = MutableStateFlow(
         listOf(
             Device(
@@ -33,11 +31,31 @@ class SniperViewModel : ViewModel() {
                 ipAddress = "192.168.1.100"
             ),
             Device(
+                id = "device_2",
+                name = "Device 2",
+                location = "Sector B",
+                longitude = 32.016,
+                latitude = 35.095,
+                status = DeviceStatus.INACTIVE,
+                batteryLevel = 72,
+                ipAddress = "192.168.1.101"
+            ),
+            Device(
+                id = "device_3",
+                name = "Device 3",
+                location = "Sector C",
+                longitude = 32.012,
+                latitude = 35.091,
+                status = DeviceStatus.ACTIVE,
+                batteryLevel = 95,
+                ipAddress = "192.168.1.102"
+            ),
+            Device(
                 id = "device_4",
                 name = "Device 4",
-                location = "Sector A",
-                longitude = 32.014,
-                latitude = 35.093,
+                location = "Sector D",
+                longitude = 32.018,
+                latitude = 35.097,
                 status = DeviceStatus.ACTIVE,
                 batteryLevel = 87,
                 ipAddress = "192.168.1.104"
@@ -49,11 +67,22 @@ class SniperViewModel : ViewModel() {
     private val _selectedDevice = MutableStateFlow<Device?>(null)
     val selectedDevice: StateFlow<Device?> = _selectedDevice
 
-    // Data from client - connect directly
     val sensorData: StateFlow<SensorData?> = raspberryPiClient.sensorData
     val detectedTargets: StateFlow<List<DetectedTarget>> = raspberryPiClient.detectedTargets
     val shootingSolution: StateFlow<ShootingSolution?> = raspberryPiClient.shootingSolution
     val systemStatus: StateFlow<SystemStatus> = raspberryPiClient.systemStatus
+
+    fun navigateToDeviceList() {
+        _uiState.value = _uiState.value.copy(currentScreen = AppScreen.DEVICE_SELECTION)
+    }
+
+    fun navigateToMap() {
+        _uiState.value = _uiState.value.copy(currentScreen = AppScreen.MAP)
+    }
+
+    fun navigateToHome() {
+        _uiState.value = _uiState.value.copy(currentScreen = AppScreen.HOME)
+    }
 
     fun selectDevice(device: Device) {
         Log.d("SniperViewModel", "selectDevice called for: ${device.name}")
@@ -62,7 +91,6 @@ class SniperViewModel : ViewModel() {
             currentScreen = AppScreen.DASHBOARD,
             selectedDeviceId = device.id
         )
-        // Start connection
         connectToDevice(device)
     }
 
@@ -81,18 +109,13 @@ class SniperViewModel : ViewModel() {
         }
     }
 
-    fun scanForDevices() {
-        _uiState.value = _uiState.value.copy(isScanning = true)
-
-        viewModelScope.launch {
-            kotlinx.coroutines.delay(3000)
-            _uiState.value = _uiState.value.copy(isScanning = false)
-        }
+    fun goBackToDeviceSelection() {
+        _uiState.value = _uiState.value.copy(currentScreen = AppScreen.DEVICE_SELECTION)
     }
 
-    fun goBackToDeviceSelection() {
-        Log.d("SniperViewModel", "goBackToDeviceSelection called")
-        _uiState.value = _uiState.value.copy(currentScreen = AppScreen.DEVICE_SELECTION)
+    fun goBackToHome() {
+        Log.d("SniperViewModel", "goBackToHome called")
+        _uiState.value = _uiState.value.copy(currentScreen = AppScreen.HOME)
         _selectedDevice.value = null
         raspberryPiClient.disconnect()
     }
@@ -109,7 +132,7 @@ class SniperViewModel : ViewModel() {
 }
 
 data class SniperUiState(
-    val currentScreen: AppScreen = AppScreen.DEVICE_SELECTION,
+    val currentScreen: AppScreen = AppScreen.HOME,
     val isScanning: Boolean = false,
     val selectedDeviceId: String? = null,
     val connectionError: String? = null,
@@ -117,6 +140,8 @@ data class SniperUiState(
 )
 
 enum class AppScreen {
+    HOME,
     DEVICE_SELECTION,
+    MAP,
     DASHBOARD
 }

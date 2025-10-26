@@ -13,8 +13,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.mysnipeit.ui.theme.MySniperItTheme
 import com.example.mysnipeit.viewmodel.SniperViewModel
 import com.example.mysnipeit.viewmodel.AppScreen
+import com.example.mysnipeit.ui.home.HomeScreen
 import com.example.mysnipeit.ui.device.DeviceSelectionScreen
+import com.example.mysnipeit.ui.map.MapScreen
 import com.example.mysnipeit.ui.dashboard.DashboardScreen
+import com.google.android.gms.maps.model.LatLng
+import android.util.Log
 
 class MainActivity : ComponentActivity() {
     private val viewModel: SniperViewModel by viewModels()
@@ -43,15 +47,42 @@ fun SniperApp(viewModel: SniperViewModel) {
     val shootingSolution by viewModel.shootingSolution.collectAsStateWithLifecycle()
     val systemStatus by viewModel.systemStatus.collectAsStateWithLifecycle()
 
+    // User location (mock location for now - can be replaced with real GPS later)
+    val userLocation = remember { LatLng(35.093, 32.014) }
+
     when (uiState.currentScreen) {
+        AppScreen.HOME -> {
+            HomeScreen(
+                onDeviceListClick = {
+                    viewModel.navigateToDeviceList()
+                },
+                onMapClick = {
+                    viewModel.navigateToMap()
+                }
+            )
+        }
+
         AppScreen.DEVICE_SELECTION -> {
             DeviceSelectionScreen(
                 devices = availableDevices,
                 onDeviceSelected = { device ->
                     viewModel.selectDevice(device)
                 },
-                onScanClick = {
-                    viewModel.scanForDevices()
+                onBackClick = {
+                    viewModel.navigateToHome()
+                }
+            )
+        }
+
+        AppScreen.MAP -> {
+            MapScreen(
+                devices = availableDevices,
+                userLocation = userLocation,
+                onDeviceSelected = { device ->
+                    viewModel.selectDevice(device)
+                },
+                onBackClick = {
+                    viewModel.navigateToHome()
                 }
             )
         }
@@ -69,12 +100,11 @@ fun SniperApp(viewModel: SniperViewModel) {
                     viewModel.disconnectFromSystem()
                 },
                 onBackClick = {
-                    viewModel.goBackToDeviceSelection()
+                    viewModel.goBackToHome()
                 },
                 onMenuClick = {
                     // TODO: Implement menu functionality later
-                    // For now, just log the click
-                    android.util.Log.d("Dashboard", "Menu clicked")
+                    Log.d("Dashboard", "Menu clicked")
                 }
             )
         }
