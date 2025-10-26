@@ -12,10 +12,13 @@
 #include "hal_i2c_config.h"
 
 #define I2C_SINGLE_MESSAGE 1
+#define I2C_DOUBLE_MESSAGE 2
+
+#define I2C_7BIT_ADDRESS 0
 
 typedef struct
 {
-    char*       path;       /** Path to the I2C device, e.g. "/dev/i2c-1" */
+    char*       path;       /** Path to the I2C bus, e.g. "/dev/i2c-1" */
     int         fd;         /** File descriptor for the I2C device */
     uint16_t    flags;      /** Flags determining the functionality of the messages handled by the device  */
     uint16_t    address;    /** Slave address used to for communication */
@@ -25,8 +28,8 @@ static I2CDevice i2c_devices[eI2C_DEVICE_COUNT] = {
     [eI2C0_DEVICE] = {
         .path = "/dev/i2c-1",
         .fd = -1,
-        .flags = eI2C0_BITS_PER_ADDRESS_CONFIG,
-        .address = eI2C0_ADDRESS_CONFIG
+        .flags = 0,      // Possible flag is `I2C_M_TEN` for 10bit address length (defualt is 7bit)
+        .address = 0
     }
 };
 
@@ -41,33 +44,7 @@ eHALReturnValue hal_i2c_init(void)
         }
 
         uint32_t funcs = 0;
-        if(i2c_devices[device_index].flags == e7BITS_PER_ADDRESS)
-        {
-            i2c_devices[device_index].flags = 0;
-        }
-        else if(i2c_devices[device_index].flags == e10BITS_PER_ADDRESS)
-        {
-            // This call to `ioctl` saves in `funcs` a bitmask indicating the device's supported operations
-            if(ioctl(i2c_devices[device_index].fd, I2C_FUNCS, &funcs) < 0)
-            {
-                return eRETURN_DEVICE_ERROR;
-            }
-            // We check to see if the device even supports 10 bit addresses
-            if(!(funcs & I2C_FUNC_10BIT_ADDR))
-            {
-                return eRETURN_DEVICE_ERROR;
-            }
-            else
-            {
-                i2c_devices[device_index].flags = I2C_M_TEN;
-            }
-        }
-        else
-        {
-            return eRETURN_INVALID_PARAMETER;
-        }
-
-        funcs = 0;
+        // This call to `ioctl` saves in `funcs` a bitmask indicating the device's supported operations
         if(ioctl(i2c_devices[device_index].fd, I2C_FUNCS, &funcs) < 0)
         {
             return eRETURN_DEVICE_ERROR;
@@ -77,13 +54,48 @@ eHALReturnValue hal_i2c_init(void)
         {
             return eRETURN_DEVICE_ERROR;
         }
+    }
 
-        // Sets the slave address that will be used for read/write operations
-        if(ioctl(i2c_devices[device_index].fd, I2C_SLAVE, i2c_devices[device_index].address) < 0)
+    return eRETURN_SUCCESS;
+}
+
+eHALReturnValue hal_i2c_set_address_length(uint32_t device_index, uint8_t addr_len)
+{
+    if(device_index > eI2C_DEVICE_COUNT)
+    {
+        return eRETURN_INVALID_DEVICE;
+    }
+
+    if(addr_len != I2C_7BIT_ADDRESS)
+    {
+        uint32_t funcs = 0;
+        if(ioctl(i2c_devices[device_index].fd, I2C_FUNCS, &funcs) < 0)
         {
             return eRETURN_DEVICE_ERROR;
         }
+        if(!(funcs & I2C_FUNC_10BIT_ADDR))
+        {
+            return eRETURN_DEVICE_ERROR;
+        }
+
+        i2c_devices[device_index].flags |= I2C_M_TEN;
     }
+    else
+    {
+        i2c_devices[device_index].flags &= (uint16_t)~(I2C_M_TEN);
+    }
+
+    return eRETURN_SUCCESS;
+}
+
+eHALReturnValue hal_i2c_set_address(uint32_t device_index, uint16_t address)
+{
+    if(device_index > eI2C_DEVICE_COUNT)
+    {
+        return eRETURN_INVALID_DEVICE;
+    }
+
+    i2c_devices[device_index].address = address;
 
     return eRETURN_SUCCESS;
 }
@@ -98,7 +110,7 @@ eHALReturnValue hal_i2c_transfer(uint32_t device_index, const struct i2c_msg* me
     {
         return eRETURN_NULL_PARAMETER;
     }
-    if(count < 0 || count > I2C_RDWR_IOCTL_MAX_MSGS)
+    if(count > I2C_RDWR_IOCTL_MAX_MSGS)
     {
         return eRETURN_INVALID_PARAMETER;
     }
@@ -118,17 +130,9 @@ eHALReturnValue hal_i2c_transfer(uint32_t device_index, const struct i2c_msg* me
 
 eHALReturnValue hal_i2c_write(uint32_t device_index, const void* buffer, size_t num_bytes)
 {
-    if(device_index > eI2C_DEVICE_COUNT)
-    {
-        return eRETURN_INVALID_DEVICE;
-    }
     if(buffer == NULL)
     {
         return eRETURN_NULL_PARAMETER;
-    }
-    if(num_bytes < 0)
-    {
-        return eRETURN_INVALID_PARAMETER;
     }
 
     struct i2c_msg message = {
@@ -141,19 +145,36 @@ eHALReturnValue hal_i2c_write(uint32_t device_index, const void* buffer, size_t 
     return hal_i2c_transfer(device_index, &message, I2C_SINGLE_MESSAGE);
 }
 
-eHALReturnValue hal_i2c_read(uint32_t device_index, const void* buffer, size_t num_bytes)
+eHALReturnValue hal_i2c_write_reg(uint32_t device_index, uint16_t reg, size_t reg_len, const void* buffer, size_t num_bytes)
 {
-    if(device_index > eI2C_DEVICE_COUNT)
-    {
-        return eRETURN_INVALID_DEVICE;
-    }
     if(buffer == NULL)
     {
         return eRETURN_NULL_PARAMETER;
     }
-    if(num_bytes < 0)
+
+    struct i2c_msg messages[I2C_DOUBLE_MESSAGE] = {
+        {
+            .addr = i2c_devices[device_index].address,
+            .flags = i2c_devices[device_index].flags,
+            .len = reg_len,
+            .buf = (uint8_t*)&reg
+        },
+        {
+            .addr = i2c_devices[device_index].address,
+            .flags = i2c_devices[device_index].flags,
+            .len = num_bytes,
+            .buf = buffer
+        }
+    };
+
+    return hal_i2c_transfer(device_index, messages, I2C_DOUBLE_MESSAGE);
+}
+
+eHALReturnValue hal_i2c_read(uint32_t device_index, void* buffer, size_t num_bytes)
+{
+    if(buffer == NULL)
     {
-        return eRETURN_INVALID_PARAMETER;
+        return eRETURN_NULL_PARAMETER;
     }
 
     struct i2c_msg message = {
@@ -164,4 +185,29 @@ eHALReturnValue hal_i2c_read(uint32_t device_index, const void* buffer, size_t n
     };
 
     return hal_i2c_transfer(device_index, &message, I2C_SINGLE_MESSAGE);
+}
+
+eHALReturnValue hal_i2c_read_reg(uint32_t device_index, uint16_t reg, size_t reg_len, void* buffer, size_t num_bytes)
+{
+    if(buffer == NULL)
+    {
+        return eRETURN_NULL_PARAMETER;
+    }
+
+    struct i2c_msg messages[I2C_DOUBLE_MESSAGE] = {
+        {
+            .addr = i2c_devices[device_index].address,
+            .flags = i2c_devices[device_index].flags,
+            .len = reg_len,
+            .buf = (uint8_t*)&reg
+        },
+        {
+            .addr = i2c_devices[device_index].address,
+            .flags = i2c_devices[device_index].flags | I2C_M_RD,
+            .len = num_bytes,
+            .buf = buffer
+        }
+    };
+
+    return hal_i2c_transfer(device_index, &messages, I2C_DOUBLE_MESSAGE);
 }
