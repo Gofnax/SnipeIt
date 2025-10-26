@@ -24,8 +24,8 @@ class SniperViewModel : ViewModel() {
                 id = "device_1",
                 name = "Device 1",
                 location = "Sector A",
-                longitude = 32.014,
-                latitude = 35.093,
+                longitude =  35.216169,
+                latitude = 33.103197,
                 status = DeviceStatus.INACTIVE,
                 batteryLevel = 89,
                 ipAddress = "192.168.1.100"
@@ -34,8 +34,8 @@ class SniperViewModel : ViewModel() {
                 id = "device_2",
                 name = "Device 2",
                 location = "Sector B",
-                longitude = 32.016,
-                latitude = 35.095,
+                longitude = 34.484580,
+                latitude = 31.527528,
                 status = DeviceStatus.INACTIVE,
                 batteryLevel = 72,
                 ipAddress = "192.168.1.101"
@@ -44,8 +44,8 @@ class SniperViewModel : ViewModel() {
                 id = "device_3",
                 name = "Device 3",
                 location = "Sector C",
-                longitude = 32.012,
-                latitude = 35.091,
+                longitude = 34.492314,
+                latitude = 31.513963,
                 status = DeviceStatus.ACTIVE,
                 batteryLevel = 95,
                 ipAddress = "192.168.1.102"
@@ -54,8 +54,8 @@ class SniperViewModel : ViewModel() {
                 id = "device_4",
                 name = "Device 4",
                 location = "Sector D",
-                longitude = 32.018,
-                latitude = 35.097,
+                longitude = 34.452488,
+                latitude = 31.514924,
                 status = DeviceStatus.ACTIVE,
                 batteryLevel = 87,
                 ipAddress = "192.168.1.104"

@@ -57,7 +57,7 @@ fun HomeScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
-                    text = "SNIPER SPOTTER",
+                    text = "SnipeIt",
                     fontSize = 32.sp,
                     fontWeight = FontWeight.Bold,
                     color = MilitaryTextPrimary,
@@ -65,7 +65,7 @@ fun HomeScreen(
                 )
 
                 Text(
-                    text = "TACTICAL SYSTEM",
+                    text = "SPOTTER TACTICAL SYSTEM",
                     fontSize = 16.sp,
                     color = MilitaryTextSecondary,
                     fontFamily = FontFamily.Monospace

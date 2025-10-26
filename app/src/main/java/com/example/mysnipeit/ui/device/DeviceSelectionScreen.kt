@@ -20,6 +20,7 @@ import com.example.mysnipeit.data.models.Device
 import com.example.mysnipeit.data.models.DeviceStatus
 import com.example.mysnipeit.ui.theme.*
 
+
 @Composable
 fun DeviceSelectionScreen(
     devices: List<Device>,
@@ -27,6 +28,7 @@ fun DeviceSelectionScreen(
     onBackClick: () -> Unit
 ) {
     var selectedDevice by remember { mutableStateOf<Device?>(null) }
+    var showInactiveWarning by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -88,7 +90,14 @@ fun DeviceSelectionScreen(
                 items(devices) { device ->
                     DeviceCard(
                         device = device,
-                        onDeviceClick = { selectedDevice = device }
+                        onDeviceClick = {
+                            // Check if device is inactive
+                            if (device.status == DeviceStatus.INACTIVE) {
+                                showInactiveWarning = true
+                            } else {
+                                selectedDevice = device
+                            }
+                        }
                     )
                 }
             }
@@ -105,6 +114,13 @@ fun DeviceSelectionScreen(
                 }
             )
         }
+
+        // Inactive Device Warning Dialog
+        if (showInactiveWarning) {
+            InactiveDeviceDialog(
+                onDismiss = { showInactiveWarning = false }
+            )
+        }
     }
 }
 
@@ -113,6 +129,8 @@ private fun DeviceCard(
     device: Device,
     onDeviceClick: () -> Unit
 ) {
+    val isInactive = device.status == DeviceStatus.INACTIVE
+
     val statusColor = when (device.status) {
         DeviceStatus.ACTIVE -> StatusConnected
         DeviceStatus.SCANNING -> StatusConnecting
@@ -123,17 +141,25 @@ private fun DeviceCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onDeviceClick() },
+            .clickable(enabled = !isInactive) { onDeviceClick() },
         colors = CardDefaults.cardColors(
             containerColor = if (device.status == DeviceStatus.ACTIVE) {
                 MilitaryAccentGreen.copy(alpha = 0.1f)
+            } else if (isInactive) {
+                MilitaryCardBackground.copy(alpha = 0.5f)
             } else {
                 MilitaryCardBackground
             }
         ),
         border = androidx.compose.foundation.BorderStroke(
             2.dp,
-            if (device.status == DeviceStatus.ACTIVE) MilitaryAccentGreen else MilitaryBorderColor
+            if (device.status == DeviceStatus.ACTIVE) {
+                MilitaryAccentGreen
+            } else if (isInactive) {
+                MilitaryBorderColor.copy(alpha = 0.3f)
+            } else {
+                MilitaryBorderColor
+            }
         )
     ) {
         Row(
@@ -149,14 +175,22 @@ private fun DeviceCard(
                     text = device.name,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = MilitaryTextPrimary,
+                    color = if (isInactive) {
+                        MilitaryTextPrimary.copy(alpha = 0.4f)
+                    } else {
+                        MilitaryTextPrimary
+                    },
                     fontFamily = FontFamily.Monospace
                 )
 
                 Text(
                     text = "Location: ${device.location}",
                     fontSize = 14.sp,
-                    color = MilitaryTextSecondary,
+                    color = if (isInactive) {
+                        MilitaryTextSecondary.copy(alpha = 0.4f)
+                    } else {
+                        MilitaryTextSecondary
+                    },
                     fontFamily = FontFamily.Monospace
                 )
 
@@ -167,14 +201,22 @@ private fun DeviceCard(
                     Text(
                         text = "Status:",
                         fontSize = 14.sp,
-                        color = MilitaryTextSecondary,
+                        color = if (isInactive) {
+                            MilitaryTextSecondary.copy(alpha = 0.4f)
+                        } else {
+                            MilitaryTextSecondary
+                        },
                         fontFamily = FontFamily.Monospace
                     )
 
                     Text(
                         text = device.status.name,
                         fontSize = 14.sp,
-                        color = statusColor,
+                        color = if (isInactive) {
+                            statusColor.copy(alpha = 0.4f)
+                        } else {
+                            statusColor
+                        },
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold
                     )
@@ -183,16 +225,121 @@ private fun DeviceCard(
                 Text(
                     text = "Battery: ${device.batteryLevel}%",
                     fontSize = 14.sp,
-                    color = if (device.batteryLevel > 20) MilitaryAccentGreen else MilitaryDangerRed,
+                    color = if (isInactive) {
+                        MilitaryTextSecondary.copy(alpha = 0.4f)
+                    } else if (device.batteryLevel > 20) {
+                        MilitaryAccentGreen
+                    } else {
+                        MilitaryDangerRed
+                    },
                     fontFamily = FontFamily.Monospace
                 )
             }
 
+            // Connect Button - Dimmed for inactive devices
+            Button(
+                onClick = onDeviceClick,
+                enabled = !isInactive,
+                modifier = Modifier.width(100.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isInactive) {
+                        MilitaryBorderColor.copy(alpha = 0.3f)
+                    } else {
+                        MilitaryAccentGreen
+                    },
+                    contentColor = if (isInactive) {
+                        MilitaryTextPrimary.copy(alpha = 0.3f)
+                    } else {
+                        Color.Black
+                    },
+                    disabledContainerColor = MilitaryBorderColor.copy(alpha = 0.3f),
+                    disabledContentColor = MilitaryTextPrimary.copy(alpha = 0.3f)
+                )
+            ) {
+                Text(
+                    text = "CONNECT",
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
             Box(
                 modifier = Modifier
                     .size(16.dp)
-                    .background(statusColor, androidx.compose.foundation.shape.CircleShape)
+                    .background(
+                        if (isInactive) {
+                            statusColor.copy(alpha = 0.4f)
+                        } else {
+                            statusColor
+                        },
+                        androidx.compose.foundation.shape.CircleShape
+                    )
             )
+        }
+    }
+}
+
+@Composable
+private fun InactiveDeviceDialog(
+    onDismiss: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = MilitaryCardBackground
+            ),
+            shape = RoundedCornerShape(12.dp),
+            border = androidx.compose.foundation.BorderStroke(2.dp, MilitaryDangerRed)
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(24.dp)
+                    .widthIn(min = 300.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "CONNECTION UNAVAILABLE",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MilitaryDangerRed,
+                    fontFamily = FontFamily.Monospace
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = "Cannot connect to inactive device.",
+                    fontSize = 14.sp,
+                    color = MilitaryTextPrimary,
+                    fontFamily = FontFamily.Monospace
+                )
+
+                Text(
+                    text = "Please ensure the device is powered on and in range.",
+                    fontSize = 14.sp,
+                    color = MilitaryTextSecondary,
+                    fontFamily = FontFamily.Monospace
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Button(
+                    onClick = onDismiss,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MilitaryAccentGreen
+                    )
+                ) {
+                    Text(
+                        text = "OK",
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black
+                    )
+                }
+            }
         }
     }
 }

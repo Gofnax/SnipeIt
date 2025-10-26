@@ -48,7 +48,7 @@ fun SniperApp(viewModel: SniperViewModel) {
     val systemStatus by viewModel.systemStatus.collectAsStateWithLifecycle()
 
     // User location (mock location for now - can be replaced with real GPS later)
-    val userLocation = remember { LatLng(35.093, 32.014) }
+    val userLocation = remember { LatLng( 31.518209, 34.521274) }
 
     when (uiState.currentScreen) {
         AppScreen.HOME -> {
@@ -100,7 +100,8 @@ fun SniperApp(viewModel: SniperViewModel) {
                     viewModel.disconnectFromSystem()
                 },
                 onBackClick = {
-                    viewModel.goBackToHome()
+                    // Navigate back to device list instead of home
+                    viewModel.goBackToDeviceSelection()
                 },
                 onMenuClick = {
                     // TODO: Implement menu functionality later
