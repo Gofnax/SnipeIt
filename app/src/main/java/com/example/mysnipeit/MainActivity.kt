@@ -19,6 +19,7 @@ import com.example.mysnipeit.ui.map.MapScreen
 import com.example.mysnipeit.ui.dashboard.DashboardScreen
 import com.google.android.gms.maps.model.LatLng
 import android.util.Log
+import com.example.mysnipeit.ui.diagnostics.DiagnosticsScreen
 
 class MainActivity : ComponentActivity() {
     private val viewModel: SniperViewModel by viewModels()
@@ -58,7 +59,9 @@ fun SniperApp(viewModel: SniperViewModel) {
                 },
                 onMapClick = {
                     viewModel.navigateToMap()
-                }
+                },
+                onDiagnosticsClick = {
+                    viewModel.navigateToDiagnostics() }
             )
         }
 
@@ -107,6 +110,12 @@ fun SniperApp(viewModel: SniperViewModel) {
                     // TODO: Implement menu functionality later
                     Log.d("Dashboard", "Menu clicked")
                 }
+            )
+        }
+
+        AppScreen.DIAGNOSTICS -> {
+            DiagnosticsScreen(
+                onBackClick = { viewModel.navigateToHome() }
             )
         }
     }

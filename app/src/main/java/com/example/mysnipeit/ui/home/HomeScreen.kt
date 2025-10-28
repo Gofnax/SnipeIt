@@ -1,15 +1,13 @@
 package com.example.mysnipeit.ui.home
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -19,8 +17,12 @@ import com.example.mysnipeit.ui.theme.*
 @Composable
 fun HomeScreen(
     onDeviceListClick: () -> Unit,
-    onMapClick: () -> Unit
+    onMapClick: () -> Unit,
+    onDiagnosticsClick: () -> Unit = {}
 ) {
+    // Debug logging
+    Log.d("HomeScreen", "HomeScreen composing...")
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -29,116 +31,119 @@ fun HomeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp),
+                .padding(32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // App Title/Logo
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
+            Text(
+                text = "SnipeIt",
+                fontSize = 64.sp,
+                fontWeight = FontWeight.Bold,
+                color = MilitaryAccentGreen,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            Text(
+                text = "Smart Spotter System",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Light,
+                color = MilitaryTextPrimary,
+                fontFamily = FontFamily.Monospace,
                 modifier = Modifier.padding(bottom = 64.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(120.dp)
-                        .background(
-                            MilitaryAccentGreen.copy(alpha = 0.2f),
-                            RoundedCornerShape(60.dp)
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "⌖",
-                        fontSize = 48.sp,
-                        color = MilitaryAccentGreen
-                    )
-                }
+            )
 
-                Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.weight(1f))
 
-                Text(
-                    text = "SnipeIt",
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MilitaryTextPrimary,
-                    fontFamily = FontFamily.Monospace
+            // Device List Button
+            Button(
+                onClick = {
+                    Log.d("HomeScreen", "Device List clicked")
+                    onDeviceListClick()
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(70.dp)
+                    .padding(vertical = 8.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MilitaryAccentGreen
                 )
-
-                Text(
-                    text = "SPOTTER TACTICAL SYSTEM",
-                    fontSize = 16.sp,
-                    color = MilitaryTextSecondary,
-                    fontFamily = FontFamily.Monospace
-                )
-            }
-
-            // Menu Buttons
-            MenuButton(
-                icon = Icons.Default.List,
-                text = "DEVICE LIST",
-                description = "View all available devices",
-                onClick = onDeviceListClick
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            MenuButton(
-                icon = Icons.Default.LocationOn,
-                text = "MAP VIEW",
-                description = "Locate devices on map",
-                onClick = onMapClick
-            )
-        }
-    }
-}
-
-@Composable
-private fun MenuButton(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    text: String,
-    description: String,
-    onClick: () -> Unit
-) {
-    Button(
-        onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(120.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = MilitaryCardBackground
-        ),
-        shape = RoundedCornerShape(8.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(24.dp)
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = text,
-                tint = MilitaryAccentGreen,
-                modifier = Modifier.size(48.dp)
-            )
-
-            Column(
-                horizontalAlignment = Alignment.Start
             ) {
                 Text(
-                    text = text,
+                    text = "DEVICE LIST",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = MilitaryTextPrimary,
-                    fontFamily = FontFamily.Monospace
-                )
-
-                Text(
-                    text = description,
-                    fontSize = 14.sp,
-                    color = MilitaryTextSecondary,
-                    fontFamily = FontFamily.Monospace
+                    fontFamily = FontFamily.Monospace,
+                    color = Color.Black
                 )
             }
+
+            // Map Button
+            Button(
+                onClick = {
+                    Log.d("HomeScreen", "Map clicked")
+                    onMapClick()
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(70.dp)
+                    .padding(vertical = 8.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MilitaryCardBackground
+                ),
+                border = androidx.compose.foundation.BorderStroke(2.dp, MilitaryAccentGreen)
+            ) {
+                Text(
+                    text = "MAP VIEW",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    color = MilitaryTextPrimary
+                )
+            }
+
+            // Diagnostics Button - WITH DEBUG LOGGING
+            Button(
+                onClick = {
+                    onDiagnosticsClick()
+                                    },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(70.dp)
+                    .padding(vertical = 8.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MilitaryBorderColor
+                ),
+                border = androidx.compose.foundation.BorderStroke(2.dp, MilitaryWarningAmber)
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "⚙ ",
+                        fontSize = 20.sp,
+                        color = MilitaryWarningAmber
+                    )
+                    Text(
+                        text = "DIAGNOSTICS",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace,
+                        color = MilitaryTextPrimary
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
+
+//            Text(
+//                text = "TACTICAL OPERATIONS",
+//                fontSize = 12.sp,
+//                color = MilitaryTextSecondary,
+//                fontFamily = FontFamily.Monospace,
+//                modifier = Modifier.padding(top = 16.dp)
+//            )
         }
     }
 }

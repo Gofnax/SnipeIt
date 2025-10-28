@@ -7,7 +7,10 @@ data class SystemStatus(
     val gpsStatus: Boolean,
     val rangefinderStatus: Boolean,
     val microphoneStatus: Boolean,
-    val lastHeartbeat: Long
+    val lastHeartbeat: Long,
+    val cpuTemperature: Double? = null,
+    val gpsLatitude: Double? = null,
+    val gpsLongitude: Double? = null
 )
 
 enum class ConnectionState {

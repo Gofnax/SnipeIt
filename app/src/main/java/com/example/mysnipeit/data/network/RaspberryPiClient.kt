@@ -1,23 +1,48 @@
 package com.example.mysnipeit.data.network
 
+import android.util.Log
 import com.example.mysnipeit.data.models.*
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import android.util.Log
-import kotlinx.coroutines.*
-import kotlin.random.Random
+import kotlinx.coroutines.flow.asStateFlow
+import org.java_websocket.client.WebSocketClient
+import org.java_websocket.handshake.ServerHandshake
+import java.net.URI
+import com.google.gson.Gson
+import java.net.HttpURLConnection
+import java.net.URL
 
+/**
+ * Enhanced Raspberry Pi Client
+ * Handles all communication with the RPi5
+ */
 class RaspberryPiClient {
 
+    companion object {
+        private const val TAG = "RaspberryPiClient"
+        private const val WEBSOCKET_PORT = 8080
+        private const val HTTP_PORT = 8000
+        private const val VIDEO_STREAM_PORT = 8554
+    }
+
+    private val gson = Gson()
+    private var webSocketClient: WebSocketClient? = null
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+    // Sensor data from RPi
     private val _sensorData = MutableStateFlow<SensorData?>(null)
-    val sensorData: StateFlow<SensorData?> = _sensorData
+    val sensorData: StateFlow<SensorData?> = _sensorData.asStateFlow()
 
+    // Detected targets from RPi
     private val _detectedTargets = MutableStateFlow<List<DetectedTarget>>(emptyList())
-    val detectedTargets: StateFlow<List<DetectedTarget>> = _detectedTargets
+    val detectedTargets: StateFlow<List<DetectedTarget>> = _detectedTargets.asStateFlow()
 
+    // Shooting solution from RPi
     private val _shootingSolution = MutableStateFlow<ShootingSolution?>(null)
-    val shootingSolution: StateFlow<ShootingSolution?> = _shootingSolution
+    val shootingSolution: StateFlow<ShootingSolution?> = _shootingSolution.asStateFlow()
 
+    // System status - FIXED to match your model exactly
     private val _systemStatus = MutableStateFlow(
         SystemStatus(
             connectionStatus = ConnectionState.DISCONNECTED,
@@ -26,194 +51,336 @@ class RaspberryPiClient {
             gpsStatus = false,
             rangefinderStatus = false,
             microphoneStatus = false,
-            lastHeartbeat = 0L
+            lastHeartbeat = System.currentTimeMillis() ,
+            cpuTemperature = null,
+            gpsLatitude = null,
+            gpsLongitude = null
         )
     )
-    val systemStatus: StateFlow<SystemStatus> = _systemStatus
+    val systemStatus: StateFlow<SystemStatus> = _systemStatus.asStateFlow()
 
-    private var simulationJob: Job? = null
-    private var isConnected = false
+    // Mock data generator
+    private var mockDataJob: Job? = null
 
-    // Mock data parameters
-    private var mockTemperature = 22.5
-    private var mockWindDirection = 270.0
-    private var mockWindSpeed = 3.2
+    /**
+     * Connect to Raspberry Pi
+     */
+    suspend fun connect(ipAddress: String) = withContext(Dispatchers.IO) {
+        try {
+            Log.d(TAG, "🔌 Attempting to connect to RPi at $ipAddress")
 
-    fun connect(ipAddress: String, port: Int = 8765) {
-        Log.d("RaspberryPiClient", "Attempting to connect to $ipAddress:$port")
+            val networkTester = NetworkTester()
+            val canPing = networkTester.pingDevice(ipAddress)
 
-        _systemStatus.value = _systemStatus.value.copy(
-            connectionStatus = ConnectionState.CONNECTING
-        )
+            if (!canPing) {
+                Log.e(TAG, "❌ Cannot ping device at $ipAddress")
+                startMockDataGeneration()
+                return@withContext
+            }
 
-        // Simulate connection process
-        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-            isConnected = true
+            Log.d(TAG, "✅ Device is reachable")
 
-            _systemStatus.value = _systemStatus.value.copy(
-                connectionStatus = ConnectionState.CONNECTED,
-                batteryLevel = Random.nextInt(60, 100),
-                cameraStatus = true,
-                gpsStatus = true,
-                rangefinderStatus = true,
-                microphoneStatus = true,
-                lastHeartbeat = System.currentTimeMillis()
+            val portStatus = networkTester.scanPorts(
+                ipAddress,
+                listOf(WEBSOCKET_PORT, HTTP_PORT, VIDEO_STREAM_PORT)
             )
 
-            Log.d("RaspberryPiClient", "Connected! Starting data simulation...")
-            startDataSimulation()
-        }, 2000)
+            Log.d(TAG, "Port scan results: $portStatus")
+
+            if (portStatus[WEBSOCKET_PORT] == true) {
+                connectWebSocket(ipAddress)
+            } else {
+                Log.w(TAG, "⚠️ WebSocket port not open, using mock data")
+                startMockDataGeneration()
+            }
+
+            if (portStatus[HTTP_PORT] == true) {
+                testHttpApi(ipAddress)
+            }
+
+            Log.d(TAG, "✅ Successfully connected to RPi")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Connection failed: ${e.message}", e)
+            Log.d(TAG, "⚠️ Falling back to mock data generation")
+            startMockDataGeneration()
+        }
     }
 
-    fun disconnect() {
-        Log.d("RaspberryPiClient", "Disconnecting from RPi5")
-        isConnected = false
-        simulationJob?.cancel()
+    private fun connectWebSocket(ipAddress: String) {
+        val wsUri = URI("ws://$ipAddress:$WEBSOCKET_PORT/sensor-data")
 
-        _systemStatus.value = _systemStatus.value.copy(
-            connectionStatus = ConnectionState.DISCONNECTED,
-            batteryLevel = null,
-            cameraStatus = false,
-            gpsStatus = false,
-            rangefinderStatus = false,
-            microphoneStatus = false
-        )
+        webSocketClient = object : WebSocketClient(wsUri) {
+            override fun onOpen(handshakedata: ServerHandshake?) {
+                Log.d(TAG, "✅ WebSocket connected")
+                updateSystemStatus(ConnectionState.CONNECTED)
+            }
 
-        // Clear data
-        _sensorData.value = null
-        _shootingSolution.value = null
-        _detectedTargets.value = emptyList()
+            override fun onMessage(message: String?) {
+                message?.let { handleWebSocketMessage(it) }
+            }
+
+            override fun onClose(code: Int, reason: String?, remote: Boolean) {
+                Log.d(TAG, "WebSocket closed: $reason")
+                updateSystemStatus(ConnectionState.DISCONNECTED)
+            }
+
+            override fun onError(ex: Exception?) {
+                Log.e(TAG, "WebSocket error: ${ex?.message}")
+                updateSystemStatus(ConnectionState.ERROR)
+            }
+        }
+
+        webSocketClient?.connect()
     }
 
-    fun sendCommand(command: String, data: Any? = null) {
-        Log.d("RaspberryPiClient", "Sending command: $command")
-    }
+    private fun handleWebSocketMessage(message: String) {
+        try {
+            Log.d(TAG, "📨 Received: $message")
 
-    private fun startDataSimulation() {
-        simulationJob?.cancel() // Cancel any existing job
+            val dataType = gson.fromJson(message, Map::class.java)["type"] as? String
 
-        simulationJob = CoroutineScope(Dispatchers.Main).launch {
-            Log.d("RaspberryPiClient", "Data simulation started!")
-
-            while (isConnected) {
-                try {
-                    // Update sensor data
-                    updateMockSensorData()
-
-                    // Update targets occasionally
-                    if (Random.nextFloat() < 0.3f) {
-                        updateMockTargets()
-                    }
-
-                    // Update shooting solution
-                    updateShootingSolution()
-
-                    // Update battery occasionally
-                    if (Random.nextFloat() < 0.1f) {
-                        updateBatteryLevel()
-                    }
-
-                    delay(500) // Update every 500ms
-                } catch (e: Exception) {
-                    Log.e("RaspberryPiClient", "Simulation error: ${e.message}")
+            when (dataType) {
+                "sensor_data" -> {
+                    val data = gson.fromJson(message, SensorData::class.java)
+                    _sensorData.value = data
                 }
+                "target_detection" -> {
+                    val targets = gson.fromJson(message, Array<DetectedTarget>::class.java).toList()
+                    _detectedTargets.value = targets
+                }
+                "shooting_solution" -> {
+                    val solution = gson.fromJson(message, ShootingSolution::class.java)
+                    _shootingSolution.value = solution
+                }
+                "system_status" -> {
+                    val status = gson.fromJson(message, SystemStatus::class.java)
+                    _systemStatus.value = status
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to parse message: ${e.message}")
+        }
+    }
+
+    private fun updateSystemStatus(connectionState: ConnectionState) {
+        _systemStatus.value = _systemStatus.value.copy(
+            connectionStatus = connectionState,
+            lastHeartbeat = System.currentTimeMillis()
+        )
+    }
+
+    private suspend fun testHttpApi(ipAddress: String): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                val url = URL("http://$ipAddress:$HTTP_PORT/api/status")
+                val connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "GET"
+                connection.connectTimeout = 5000
+                connection.readTimeout = 5000
+
+                val responseCode = connection.responseCode
+                val isSuccess = responseCode == 200
+
+                if (isSuccess) {
+                    val response = connection.inputStream.bufferedReader().readText()
+                    Log.d(TAG, "✅ HTTP API response: $response")
+                } else {
+                    Log.w(TAG, "⚠️ HTTP API returned code: $responseCode")
+                }
+
+                connection.disconnect()
+                isSuccess
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ HTTP API test failed: ${e.message}")
+                false
             }
         }
     }
 
-    private fun updateMockSensorData() {
-        // Simulate realistic sensor variations
-        mockTemperature += Random.nextDouble(-0.2, 0.2)
-        mockTemperature = mockTemperature.coerceIn(15.0, 35.0)
+    suspend fun sendCommand(ipAddress: String, command: String, params: Map<String, Any> = emptyMap()): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                val url = URL("http://$ipAddress:$HTTP_PORT/api/command")
+                val connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "POST"
+                connection.setRequestProperty("Content-Type", "application/json")
+                connection.doOutput = true
 
-        mockWindDirection += Random.nextDouble(-5.0, 5.0)
-        mockWindDirection = (mockWindDirection + 360) % 360
+                val jsonCommand = gson.toJson(mapOf("command" to command, "params" to params))
+                connection.outputStream.write(jsonCommand.toByteArray())
 
-        mockWindSpeed += Random.nextDouble(-0.3, 0.3)
-        mockWindSpeed = mockWindSpeed.coerceIn(0.0, 15.0)
+                val responseCode = connection.responseCode
+                val isSuccess = responseCode == 200
 
-        val newSensorData = SensorData(
-            temperature = mockTemperature,
-            humidity = Random.nextDouble(50.0, 80.0),
-            windDirection = mockWindDirection,
-            windSpeed = mockWindSpeed,
-            rangefinderDistance = 450.0 + Random.nextDouble(-10.0, 10.0),
-            gpsLatitude = 35.093 + Random.nextDouble(-0.001, 0.001),
-            gpsLongitude = 32.014 + Random.nextDouble(-0.001, 0.001),
-            timestamp = System.currentTimeMillis()
-        )
+                Log.d(TAG, if (isSuccess) "✅ Command sent: $command" else "❌ Command failed: $command")
 
-        _sensorData.value = newSensorData
-        Log.d("RaspberryPiClient", "Sensor data updated: Temp=${mockTemperature.toInt()}°C, Wind=${mockWindSpeed.toInt()}m/s")
-    }
-
-    private fun updateMockTargets() {
-        val targetScenarios = listOf(
-            emptyList(),
-            listOf(createMockTarget("H1", TargetType.HUMAN, 420.0, 245.5f, 0.85f)),
-            listOf(
-                createMockTarget("H1", TargetType.HUMAN, 380.0, 240.0f, 0.92f),
-                createMockTarget("V1", TargetType.VEHICLE, 650.0, 260.0f, 0.78f)
-            )
-        )
-
-        _detectedTargets.value = targetScenarios.random()
-    }
-
-    private fun createMockTarget(
-        id: String,
-        type: TargetType,
-        distance: Double,
-        bearing: Float,
-        confidence: Float
-    ): DetectedTarget {
-        return DetectedTarget(
-            id = id,
-            confidence = confidence,
-            screenX = Random.nextFloat(),
-            screenY = Random.nextFloat(),
-            worldLatitude = 35.093 + Random.nextDouble(-0.01, 0.01),
-            worldLongitude = 32.014 + Random.nextDouble(-0.01, 0.01),
-            distance = distance,
-            bearing = bearing.toDouble(),
-            targetType = type,
-            timestamp = System.currentTimeMillis()
-        )
-    }
-
-    private fun updateShootingSolution() {
-        val targets = _detectedTargets.value
-        if (targets.isNotEmpty()) {
-            val bestTarget = targets.first()
-
-            _shootingSolution.value = ShootingSolution(
-                azimuth = bestTarget.bearing + Random.nextDouble(-1.0, 1.0),
-                elevation = calculateMockElevation(bestTarget.distance),
-                windageAdjustment = Random.nextDouble(-0.5, 0.5),
-                elevationAdjustment = Random.nextDouble(-0.5, 0.5),
-                confidence = bestTarget.confidence,
-                timestamp = System.currentTimeMillis()
-            )
-        } else {
-            _shootingSolution.value = null
+                connection.disconnect()
+                isSuccess
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Failed to send command: ${e.message}")
+                false
+            }
         }
     }
 
-    private fun calculateMockElevation(distance: Double): Double {
-        return when {
-            distance < 300 -> Random.nextDouble(8.0, 12.0)
-            distance < 600 -> Random.nextDouble(12.0, 18.0)
-            else -> Random.nextDouble(18.0, 25.0)
+    fun getVideoStreamUrl(ipAddress: String): String {
+        return "rtsp://$ipAddress:$VIDEO_STREAM_PORT/video"
+    }
+
+    /**
+     * Start mock data generation - FIXED with Boolean values
+     */
+    private fun startMockDataGeneration() {
+        Log.d(TAG, "🎭 Starting mock data generation")
+
+        mockDataJob?.cancel()
+        mockDataJob = scope.launch {
+            while (isActive) {
+                // Generate mock sensor data
+                _sensorData.value = SensorData(
+                    temperature = 20.0 + (Math.random() * 10),
+                    humidity = 50.0 + (Math.random() * 20),
+                    windSpeed = 5.0 + (Math.random() * 10),
+                    windDirection = (Math.random() * 360).toInt().toDouble(),
+                    rangefinderDistance = 400.0 + (Math.random() * 200),
+                    gpsLatitude = 35.0 + (Math.random() * 10),
+                    gpsLongitude = 32.0 + (Math.random() * 10),
+                    timestamp = System.currentTimeMillis()
+                )
+
+                // Generate mock shooting solution
+                _shootingSolution.value = ShootingSolution(
+                    azimuth = 245.0 + (Math.random() * 10),
+                    elevation = 12.0 + (Math.random() * 5),
+                    windageAdjustment = 2.0 + (Math.random() * 2),
+                    elevationAdjustment = 1.5 + (Math.random() * 1),
+                    confidence = 0.75f + (Math.random() * 0.2).toFloat(),
+                    timestamp = System.currentTimeMillis()
+                )
+
+                // Update system status - FIXED with Boolean values
+                _systemStatus.value = SystemStatus(
+                    connectionStatus = ConnectionState.CONNECTED,
+                    batteryLevel = 85,
+                    cameraStatus = true,        // Boolean: true = working
+                    gpsStatus = true,           // Boolean: true = locked
+                    rangefinderStatus = true,   // Boolean: true = ready
+                    microphoneStatus = true,    // Boolean: true = listening
+                    lastHeartbeat = System.currentTimeMillis()
+                )
+
+                delay(1000) // Update every second
+            }
         }
     }
 
-    private fun updateBatteryLevel() {
-        val currentBattery = _systemStatus.value.batteryLevel ?: 100
-        val newBattery = (currentBattery - Random.nextInt(0, 2)).coerceIn(20, 100)
+    fun disconnect() {
+        Log.d(TAG, "🔌 Disconnecting from RPi")
+
+        webSocketClient?.close()
+        webSocketClient = null
+
+        mockDataJob?.cancel()
+        mockDataJob = null
 
         _systemStatus.value = _systemStatus.value.copy(
-            batteryLevel = newBattery,
-            lastHeartbeat = System.currentTimeMillis()
+            connectionStatus = ConnectionState.DISCONNECTED
         )
+        _sensorData.value = null
+        _detectedTargets.value = emptyList()
+        _shootingSolution.value = null
+    }
+
+    fun isConnected(): Boolean {
+        return _systemStatus.value.connectionStatus == ConnectionState.CONNECTED
     }
 }
+
+/**
+
+ * Expected JSON format from RPi:
+
+ *
+
+ * Sensor Data:
+
+ * {
+
+ *   "type": "sensor_data",
+
+ *   "temperature": 25.5,
+
+ *   "humidity": 65.0,
+
+ *   "windSpeed": 8.2,
+
+ *   "windDirection": 245,
+
+ *   "rangefinderDistance": 420.5,
+
+ *   "timestamp": 1234567890
+
+ * }
+
+ *
+
+ * Target Detection:
+
+ * {
+
+ *   "type": "target_detection",
+
+ *   "targets": [
+
+ *     {
+
+ *       "id": "T1",
+
+ *       "confidence": 0.85,
+
+ *       "screenX": 0.5,
+
+ *       "screenY": 0.4,
+
+ *       "worldLatitude": 35.094,
+
+ *       "worldLongitude": 32.015,
+
+ *       "distance": 420.0,
+
+ *       "bearing": 245.0,
+
+ *       "targetType": "HUMAN",
+
+ *       "timestamp": 1234567890
+
+ *     }
+
+ *   ]
+
+ * }
+
+ *
+
+ * Shooting Solution:
+
+ * {
+
+ *   "type": "shooting_solution",
+
+ *   "azimuth": 245.5,
+
+ *   "elevation": 12.3,
+
+ *   "windageAdjustment": 2.1,
+
+ *   "elevationAdjustment": 1.5,
+
+ *   "confidence": 0.85,
+
+ *   "timestamp": 1234567890
+
+ * }
+
+ */

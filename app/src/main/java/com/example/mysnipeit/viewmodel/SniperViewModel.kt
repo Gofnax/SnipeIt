@@ -3,7 +3,7 @@ package com.example.mysnipeit.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.mysnipeit.data.models.*
-import com.example.mysnipeit.data.network.RaspberryPiClient
+import com.example.mysnipeit.data.repository.SniperRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -12,7 +12,7 @@ import android.util.Log
 
 class SniperViewModel : ViewModel() {
 
-    private val raspberryPiClient = RaspberryPiClient()
+    private val repository = SniperRepository()
 
     private val _uiState = MutableStateFlow(SniperUiState())
     val uiState: StateFlow<SniperUiState> = _uiState.asStateFlow()
@@ -24,7 +24,7 @@ class SniperViewModel : ViewModel() {
                 id = "device_1",
                 name = "Device 1",
                 location = "Sector A",
-                longitude =  35.216169,
+                longitude = 35.216169,
                 latitude = 33.103197,
                 status = DeviceStatus.INACTIVE,
                 batteryLevel = 89,
@@ -67,10 +67,11 @@ class SniperViewModel : ViewModel() {
     private val _selectedDevice = MutableStateFlow<Device?>(null)
     val selectedDevice: StateFlow<Device?> = _selectedDevice
 
-    val sensorData: StateFlow<SensorData?> = raspberryPiClient.sensorData
-    val detectedTargets: StateFlow<List<DetectedTarget>> = raspberryPiClient.detectedTargets
-    val shootingSolution: StateFlow<ShootingSolution?> = raspberryPiClient.shootingSolution
-    val systemStatus: StateFlow<SystemStatus> = raspberryPiClient.systemStatus
+    // Data from repository
+    val sensorData: StateFlow<SensorData?> = repository.sensorData
+    val detectedTargets: StateFlow<List<DetectedTarget>> = repository.detectedTargets
+    val shootingSolution: StateFlow<ShootingSolution?> = repository.shootingSolution
+    val systemStatus: StateFlow<SystemStatus> = repository.systemStatus
 
     fun navigateToDeviceList() {
         _uiState.value = _uiState.value.copy(currentScreen = AppScreen.DEVICE_SELECTION)
@@ -82,6 +83,10 @@ class SniperViewModel : ViewModel() {
 
     fun navigateToHome() {
         _uiState.value = _uiState.value.copy(currentScreen = AppScreen.HOME)
+    }
+
+    fun navigateToDiagnostics() {
+        _uiState.value = _uiState.value.copy(currentScreen = AppScreen.DIAGNOSTICS)
     }
 
     fun selectDevice(device: Device) {
@@ -98,7 +103,8 @@ class SniperViewModel : ViewModel() {
         Log.d("SniperViewModel", "connectToDevice called for IP: ${device.ipAddress}")
         viewModelScope.launch {
             try {
-                raspberryPiClient.connect(device.ipAddress)
+                // FIXED: Remove port parameter, only pass IP address
+                repository.connectToSystem(device.ipAddress)
                 Log.d("SniperViewModel", "Connection initiated successfully")
             } catch (e: Exception) {
                 Log.e("SniperViewModel", "Connection failed: ${e.message}")
@@ -117,7 +123,7 @@ class SniperViewModel : ViewModel() {
         Log.d("SniperViewModel", "goBackToHome called")
         _uiState.value = _uiState.value.copy(currentScreen = AppScreen.HOME)
         _selectedDevice.value = null
-        raspberryPiClient.disconnect()
+        repository.disconnectFromSystem()
     }
 
     fun connectToSystem() {
@@ -127,7 +133,24 @@ class SniperViewModel : ViewModel() {
     }
 
     fun disconnectFromSystem() {
-        raspberryPiClient.disconnect()
+        repository.disconnectFromSystem()
+    }
+
+    // Command methods
+    fun selectTarget(targetId: String) {
+        repository.selectTarget(targetId)
+    }
+
+    fun requestCalibration() {
+        repository.requestCalibration()
+    }
+
+    fun setManualTarget(latitude: Double, longitude: Double) {
+        repository.setManualTarget(latitude, longitude)
+    }
+
+    fun emergencyStop() {
+        repository.emergencyStop()
     }
 }
 
@@ -143,5 +166,6 @@ enum class AppScreen {
     HOME,
     DEVICE_SELECTION,
     MAP,
-    DASHBOARD
+    DASHBOARD,
+    DIAGNOSTICS
 }
