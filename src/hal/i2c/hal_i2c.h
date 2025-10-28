@@ -3,6 +3,7 @@
 
 /* Standard Libraries */
 #include <stdint.h>
+#include <stddef.h>
 
 /* Linux Specific Libraries */
 #include <linux/i2c-dev.h>
@@ -65,7 +66,7 @@ eHALReturnValue hal_i2c_set_address(uint32_t device_index, uint16_t address);
  * @retval  eRETURN_INVALID_PARAMETER   count is out of range
  * @retval  eRETURN_DEVICE_ERROR        failure to transfer the messages
  */
-eHALReturnValue hal_i2c_transfer(uint32_t device_index, const struct i2c_msg* messages, size_t count);
+eHALReturnValue hal_i2c_transfer(uint32_t device_index, struct i2c_msg* messages, size_t count);
 
 /**
  * @brief   Writes the contents of buffer to an I2C device.
@@ -80,7 +81,7 @@ eHALReturnValue hal_i2c_transfer(uint32_t device_index, const struct i2c_msg* me
  * @retval  eRETURN_NULL_PARAMETER      buffer is NULL
  * @retval  eRETURN_DEVICE_ERROR        failure to transfer the messages
  */
-eHALReturnValue hal_i2c_write(uint32_t device_index, const void* buffer, size_t num_bytes);
+eHALReturnValue hal_i2c_write(uint32_t device_index, void* buffer, size_t num_bytes);
 
 /**
  * @brief   Writes the contents of buffer to an I2C device.
@@ -98,7 +99,7 @@ eHALReturnValue hal_i2c_write(uint32_t device_index, const void* buffer, size_t 
  * @retval  eRETURN_NULL_PARAMETER      buffer is NULL
  * @retval  eRETURN_DEVICE_ERROR        failure to transfer the messages
  */
-eHALReturnValue hal_i2c_write_reg(uint32_t device_index, uint16_t reg, size_t reg_len, const void* buffer, size_t num_bytes);
+eHALReturnValue hal_i2c_write_reg(uint32_t device_index, uint16_t reg, size_t reg_len, void* buffer, size_t num_bytes);
 
 /**
  * @brief   Reads from an I2C device.

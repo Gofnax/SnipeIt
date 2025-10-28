@@ -39,7 +39,7 @@ eHALReturnValue hal_uart_read(uint32_t device_index, void* buffer, size_t num_by
  *          from 'buf'.
  * @param   device_index A value from @ref eUARTDeviceNumber.
  * @param   buffer A pointer to the transmit buffer.
- * @param   num_bytes The number of bytes to written to the device.
+ * @param   num_bytes The number of bytes to write to the device.
  * @returns A value from @ref eHALReturnValues.
  * @retval  eRETURN_SUCCESS         successful execution
  * @retval  eRETURN_INVALID_DEVICE  device is not from @ref eUARTDeviceNumber
