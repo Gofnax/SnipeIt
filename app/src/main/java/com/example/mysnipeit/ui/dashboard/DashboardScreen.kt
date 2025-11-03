@@ -20,6 +20,7 @@ import com.example.mysnipeit.data.models.ShootingSolution
 import com.example.mysnipeit.data.models.SystemStatus
 import com.example.mysnipeit.data.models.ConnectionState
 import com.example.mysnipeit.ui.theme.*
+import com.example.mysnipeit.ui.components.MockVideoFeed
 import android.util.Log
 
 @Composable
@@ -295,7 +296,8 @@ private fun ConnectionStatusCompact(systemStatus: SystemStatus) {
 private fun VideoFeedSection(
     detectedTargets: List<DetectedTarget>,
     modifier: Modifier = Modifier
-) {
+)
+{
     TacticalVideoPlayer(
         detectedTargets = detectedTargets,
         onTargetClick = { target ->
@@ -304,3 +306,9 @@ private fun VideoFeedSection(
         modifier = modifier
     )
 }
+//    {
+//        MockVideoFeed(  // ← NEW
+//            detectedTargets = detectedTargets,
+//            modifier = modifier
+//        )
+//    }
