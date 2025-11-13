@@ -156,9 +156,9 @@ fun TacticalVideoPlayer(
 
                 Text(
                     text = when {
-                        hasSelectedTarget -> " SOLUTION ACTIVE"
-                        hasLockedTargets -> " ${lockedTargets.size} LOCKED"
-                        else -> " SCANNING"
+                        hasSelectedTarget -> "SOLUTION ACTIVE"
+                        hasLockedTargets -> " ${lockedTargets.size}LOCKED"
+                        else -> "SCANNING"
                     },
                     color = when {
                         hasSelectedTarget -> Color(0xFFFF6B35)
@@ -469,7 +469,7 @@ private fun EnhancedTargetMarker(
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = if (isLocked) " UNLOCK" else " LOCK",
+                            text = if (isLocked) "UNLOCK" else "LOCK",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.Black,

@@ -24,8 +24,8 @@ class SniperViewModel : ViewModel() {
                 id = "device_1",
                 name = "Device 1",
                 location = "Sector A",
-                longitude = 35.216169,
-                latitude = 33.103197,
+                longitude = 34.437713,
+                latitude = 31.467357,
                 status = DeviceStatus.INACTIVE,
                 batteryLevel = 89,
                 ipAddress = "192.168.1.100"
@@ -92,9 +92,12 @@ class SniperViewModel : ViewModel() {
     fun selectDevice(device: Device) {
         Log.d("SniperViewModel", "selectDevice called for: ${device.name}")
         _selectedDevice.value = device
+        val currentScreen = _uiState.value.currentScreen
+
         _uiState.value = _uiState.value.copy(
             currentScreen = AppScreen.DASHBOARD,
-            selectedDeviceId = device.id
+            selectedDeviceId = device.id,
+            previousScreen = currentScreen
         )
         connectToDevice(device)
     }
@@ -115,8 +118,19 @@ class SniperViewModel : ViewModel() {
         }
     }
 
-    fun goBackToDeviceSelection() {
-        _uiState.value = _uiState.value.copy(currentScreen = AppScreen.DEVICE_SELECTION)
+    fun goBackFromDashboard() {
+        //Smart back: go to where we came from
+        val targetScreen = when (_uiState.value.previousScreen) {
+            AppScreen.MAP -> AppScreen.MAP
+            AppScreen.DEVICE_SELECTION -> AppScreen.DEVICE_SELECTION
+            else -> AppScreen.DEVICE_SELECTION  // Default fallback
+        }
+
+        Log.d("SniperViewModel", "Going back to: $targetScreen")
+        _uiState.value = _uiState.value.copy(
+            currentScreen = targetScreen,
+            previousScreen = null  // Clear previous screen
+        )
     }
 
     fun goBackToHome() {
@@ -165,7 +179,8 @@ data class SniperUiState(
     val selectedDeviceId: String? = null,
     val connectionError: String? = null,
     val isVideoFullscreen: Boolean = false,
-    val selectedTargetId: String? = null
+    val selectedTargetId: String? = null,
+    val previousScreen: AppScreen? = null
 )
 
 enum class AppScreen {

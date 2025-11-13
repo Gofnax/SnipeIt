@@ -107,7 +107,7 @@ fun SniperApp(viewModel: SniperViewModel) {
                 },
                 onConnectClick = { viewModel.connectToSystem() },
                 onDisconnectClick = { viewModel.disconnectFromSystem() },
-                onBackClick = { viewModel.goBackToDeviceSelection() },
+                onBackClick = { viewModel.goBackFromDashboard() },
                 onMenuClick = { /* TODO */ }
             )
         }

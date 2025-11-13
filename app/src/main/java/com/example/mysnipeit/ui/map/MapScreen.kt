@@ -218,12 +218,22 @@ private fun DeviceMapDialog(
 
                     Button(
                         onClick = onConnect,
+                        enabled = device.status == DeviceStatus.ACTIVE,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = MilitaryAccentGreen
+                            containerColor = if (device.status == DeviceStatus.ACTIVE) {
+                                MilitaryAccentGreen  // Green for active
+                            } else {
+                                Color.Gray  // Gray for inactive
+                            },
+                            disabledContainerColor = Color.Gray.copy(alpha = 0.5f)
                         )
                     ) {
                         Text(
-                            text = "CONNECT",
+                            text = if (device.status == DeviceStatus.ACTIVE) {
+                                "CONNECT"
+                            } else {
+                                "DEVICE OFFLINE"
+                            },
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold,
                             color = Color.Black
