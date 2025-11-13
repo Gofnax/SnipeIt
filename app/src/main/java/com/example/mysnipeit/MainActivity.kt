@@ -47,6 +47,7 @@ fun SniperApp(viewModel: SniperViewModel) {
     val detectedTargets by viewModel.detectedTargets.collectAsStateWithLifecycle()
     val shootingSolution by viewModel.shootingSolution.collectAsStateWithLifecycle()
     val systemStatus by viewModel.systemStatus.collectAsStateWithLifecycle()
+    val selectedTargetId = uiState.selectedTargetId
 
     // User location (mock location for now - can be replaced with real GPS later)
     val userLocation = remember { LatLng( 31.518209, 34.521274) }
@@ -96,20 +97,18 @@ fun SniperApp(viewModel: SniperViewModel) {
                 detectedTargets = detectedTargets,
                 shootingSolution = shootingSolution,
                 systemStatus = systemStatus,
-                onConnectClick = {
-                    viewModel.connectToSystem()
+                selectedTargetId = selectedTargetId,
+                onTargetSelect = { targetId ->
+                    if (targetId.isEmpty()) {
+                        viewModel.deselectTarget()
+                    } else {
+                        viewModel.selectTarget(targetId)
+                    }
                 },
-                onDisconnectClick = {
-                    viewModel.disconnectFromSystem()
-                },
-                onBackClick = {
-                    // Navigate back to device list instead of home
-                    viewModel.goBackToDeviceSelection()
-                },
-                onMenuClick = {
-                    // TODO: Implement menu functionality later
-                    Log.d("Dashboard", "Menu clicked")
-                }
+                onConnectClick = { viewModel.connectToSystem() },
+                onDisconnectClick = { viewModel.disconnectFromSystem() },
+                onBackClick = { viewModel.goBackToDeviceSelection() },
+                onMenuClick = { /* TODO */ }
             )
         }
 

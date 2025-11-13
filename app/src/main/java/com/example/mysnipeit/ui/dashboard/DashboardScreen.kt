@@ -20,7 +20,6 @@ import com.example.mysnipeit.data.models.ShootingSolution
 import com.example.mysnipeit.data.models.SystemStatus
 import com.example.mysnipeit.data.models.ConnectionState
 import com.example.mysnipeit.ui.theme.*
-import com.example.mysnipeit.ui.components.MockVideoFeed
 import android.util.Log
 
 @Composable
@@ -29,8 +28,10 @@ fun DashboardScreen(
     detectedTargets: List<DetectedTarget>,
     shootingSolution: ShootingSolution?,
     systemStatus: SystemStatus,
+    selectedTargetId: String?,  // ← NEW: Receive selected target ID
     onConnectClick: () -> Unit,
     onDisconnectClick: () -> Unit,
+    onTargetSelect: (String) -> Unit = {},  // ← NEW: Selection callback
     onBackClick: () -> Unit = {},
     onMenuClick: () -> Unit = {}
 ) {
@@ -39,25 +40,29 @@ fun DashboardScreen(
             .fillMaxSize()
             .background(MilitaryDarkBackground)
     ) {
-        // Top HUD Bar - Compact data display
+        // Top HUD Bar with Shooting Solution
         TopHudBar(
             sensorData = sensorData,
             shootingSolution = shootingSolution,
             systemStatus = systemStatus,
+            selectedTargetId = selectedTargetId,  // ← NEW
             onBackClick = onBackClick,
             onMenuClick = onMenuClick,
             onConnectClick = onConnectClick,
             onDisconnectClick = onDisconnectClick
         )
 
-        // Main Video Feed - 80% of screen
+        // Main Video Feed
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f) // Takes remaining space
+                .weight(1f)
         ) {
             VideoFeedSection(
                 detectedTargets = detectedTargets,
+                shootingSolution = shootingSolution,
+                selectedTargetId = selectedTargetId,
+                onTargetSelect = onTargetSelect,
                 modifier = Modifier.fillMaxSize()
             )
         }
@@ -69,6 +74,7 @@ private fun TopHudBar(
     sensorData: SensorData?,
     shootingSolution: ShootingSolution?,
     systemStatus: SystemStatus,
+    selectedTargetId: String?,  // ← NEW
     onBackClick: () -> Unit,
     onMenuClick: () -> Unit,
     onConnectClick: () -> Unit,
@@ -92,7 +98,6 @@ private fun TopHudBar(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Back button
                 IconButton(
                     onClick = onBackClick,
                     modifier = Modifier
@@ -110,7 +115,6 @@ private fun TopHudBar(
                     )
                 }
 
-                // Menu button
                 IconButton(
                     onClick = onMenuClick,
                     modifier = Modifier
@@ -129,12 +133,19 @@ private fun TopHudBar(
                 }
             }
 
-            // Center section - Shooting data
+            //  Center section - Shooting Solution Data
             Row(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Only show solution if target is selected
                 if (shootingSolution != null) {
+                    HudDataBox(
+                        label = "TGT",
+                        value = shootingSolution.targetId,
+                        isActive = true,
+                        textColor = Color(0xFFFF6B35)  // Orange for active target
+                    )
                     HudDataBox(
                         label = "AZ",
                         value = "${shootingSolution.azimuth.toInt()}°",
@@ -142,27 +153,33 @@ private fun TopHudBar(
                     )
                     HudDataBox(
                         label = "EL",
-                        value = "${shootingSolution.elevation.toInt()}°",
+                        value = "${if (shootingSolution.elevation > 0) "+" else ""}${shootingSolution.elevation.toInt()}°",
                         isActive = true
                     )
                     HudDataBox(
                         label = "CONF",
                         value = "${(shootingSolution.confidence * 100).toInt()}%",
-                        isActive = shootingSolution.confidence > 0.7f
+                        isActive = shootingSolution.confidence > 0.7f,
+                        textColor = when {
+                            shootingSolution.confidence > 0.8f -> Color(0xFF00FF41)
+                            shootingSolution.confidence > 0.6f -> Color(0xFFFFAA00)
+                            else -> Color(0xFFFF4444)
+                        }
                     )
                 } else {
+                    // No target selected - show dashes
+                    HudDataBox(label = "TGT", value = "--", isActive = false)
                     HudDataBox(label = "AZ", value = "--", isActive = false)
                     HudDataBox(label = "EL", value = "--", isActive = false)
                     HudDataBox(label = "CONF", value = "--", isActive = false)
                 }
             }
 
-            // Right section - Environmental data
+            // Right section - Environmental data (unchanged)
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Environmental data
                 if (sensorData != null) {
                     HudDataBox(
                         label = "TEMP",
@@ -198,15 +215,13 @@ private fun TopHudBar(
                 }
             }
 
-            // Far right section - Status indicators
+            // Far right section - Status indicators (unchanged)
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Connection status
                 ConnectionStatusCompact(systemStatus)
 
-                // Battery level
                 systemStatus.batteryLevel?.let { battery ->
                     HudDataBox(
                         label = "BAT",
@@ -223,7 +238,8 @@ private fun TopHudBar(
 private fun HudDataBox(
     label: String,
     value: String,
-    isActive: Boolean
+    isActive: Boolean,
+    textColor: Color? = null  // ← NEW: Optional custom text color
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -243,7 +259,7 @@ private fun HudDataBox(
         )
         Text(
             text = value,
-            color = if (isActive) MilitaryTextPrimary else MilitaryTextSecondary,
+            color = textColor ?: if (isActive) MilitaryTextPrimary else MilitaryTextSecondary,
             fontSize = 11.sp,
             fontFamily = FontFamily.Monospace,
             fontWeight = FontWeight.Bold
@@ -295,20 +311,19 @@ private fun ConnectionStatusCompact(systemStatus: SystemStatus) {
 @Composable
 private fun VideoFeedSection(
     detectedTargets: List<DetectedTarget>,
+    shootingSolution: ShootingSolution?,
+    selectedTargetId: String?,
+    onTargetSelect: (String) -> Unit,
     modifier: Modifier = Modifier
-)
-{
+) {
     TacticalVideoPlayer(
         detectedTargets = detectedTargets,
+        shootingSolution = shootingSolution,  // ← NEW: Pass solution
+        selectedTargetId = selectedTargetId,  // ← NEW: Pass selected ID
         onTargetClick = { target ->
-            android.util.Log.d("Dashboard", "Target selected: ${target.targetType} at ${target.distance}m")
+            Log.d("Dashboard", "Target clicked: ${target.id}")
         },
+        onTargetSelect = onTargetSelect,  // ← NEW: Pass callback
         modifier = modifier
     )
 }
-//    {
-//        MockVideoFeed(  // ← NEW
-//            detectedTargets = detectedTargets,
-//            modifier = modifier
-//        )
-//    }

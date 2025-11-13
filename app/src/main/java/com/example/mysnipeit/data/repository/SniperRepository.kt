@@ -22,7 +22,7 @@ class SniperRepository {
     val shootingSolution: StateFlow<ShootingSolution?> = raspberryPiClient.shootingSolution
     val systemStatus: StateFlow<SystemStatus> = raspberryPiClient.systemStatus
 
-    // Connection management - FIXED
+
     suspend fun connectToSystem(ipAddress: String) {
         currentIpAddress = ipAddress
         raspberryPiClient.connect(ipAddress)

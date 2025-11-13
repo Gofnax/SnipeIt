@@ -3,6 +3,7 @@ package com.example.mysnipeit.ui.dashboard
 import android.content.Context
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -28,14 +29,20 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.example.mysnipeit.R
 import com.example.mysnipeit.data.models.DetectedTarget
+import com.example.mysnipeit.data.models.ShootingSolution
 import com.example.mysnipeit.data.models.TargetType
+import com.example.mysnipeit.ui.components.TacticalCompass
 import com.example.mysnipeit.ui.theme.*
 import kotlinx.coroutines.delay
 
 @Composable
 fun TacticalVideoPlayer(
     detectedTargets: List<DetectedTarget>,
+    shootingSolution: ShootingSolution?,  // ← NEW: Receive shooting solution
+    selectedTargetId: String?,            // ← NEW: Know which target is selected
     onTargetClick: (DetectedTarget) -> Unit = {},
+    onTargetLockToggle: (String) -> Unit = {},  // ← NEW: Lock/unlock callback
+    onTargetSelect: (String) -> Unit = {},      // ← NEW: Select for solution callback
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -63,7 +70,7 @@ fun TacticalVideoPlayer(
     LaunchedEffect(Unit) {
         while (true) {
             videoTime = exoPlayer.currentPosition
-            delay(100) // Update every 100ms
+            delay(100)
         }
     }
 
@@ -83,39 +90,52 @@ fun TacticalVideoPlayer(
             factory = { ctx ->
                 PlayerView(ctx).apply {
                     player = exoPlayer
-                    useController = false // Hide default controls
+                    useController = false
                     setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
                 }
             },
             modifier = Modifier.fillMaxSize()
         )
 
-        // Tactical overlays on top of video
+        // Tactical overlays
         Box(modifier = Modifier.fillMaxSize()) {
-            // Crosshair overlay
+            // Crosshair
             CrosshairOverlay()
 
-            // Scanning line effect
+            // Scanning line
             ScanLineOverlay(scanlinePosition)
 
-            // Enhanced target markers with lock/unlock
+            // Target markers
             SimulatedTargets(videoTime).forEach { target ->
+                val isLocked = lockedTargets.contains(target.id)
+                val isSelected = target.id == selectedTargetId
+
                 EnhancedTargetMarker(
                     target = target,
-                    isLocked = lockedTargets.contains(target.id),
+                    isLocked = isLocked,
+                    isSelected = isSelected,
                     onLockClick = {
-                        if (lockedTargets.contains(target.id)) {
-                            // Unlock
+                        if (isLocked) {
                             lockedTargets = lockedTargets - target.id
+                            // Deselect if unlocking selected target
+                            if (isSelected) {
+                                onTargetSelect("")
+                            }
                         } else {
-                            // Lock
                             lockedTargets = lockedTargets + target.id
+                        }
+                        onTargetLockToggle(target.id)
+                    },
+                    onTargetClick = {
+                        // Only allow selection of locked targets
+                        if (isLocked) {
+                            onTargetSelect(target.id)
                         }
                     }
                 )
             }
 
-            // Video status overlay
+            // Video status
             VideoStatusOverlay(
                 modifier = Modifier.align(Alignment.TopStart)
             )
@@ -132,17 +152,38 @@ fun TacticalVideoPlayer(
                     .padding(horizontal = 12.dp, vertical = 6.dp)
             ) {
                 val hasLockedTargets = lockedTargets.isNotEmpty()
+                val hasSelectedTarget = selectedTargetId != null
+
                 Text(
-                    text = if (hasLockedTargets) {
-                        "🎯 TRACKING (${lockedTargets.size} locked)"
-                    } else {
-                        "🔍 SCANNING"
+                    text = when {
+                        hasSelectedTarget -> " SOLUTION ACTIVE"
+                        hasLockedTargets -> " ${lockedTargets.size} LOCKED"
+                        else -> " SCANNING"
                     },
-                    color = if (hasLockedTargets) Color(0xFFFF6B35) else Color(0xFF00FF41),
+                    color = when {
+                        hasSelectedTarget -> Color(0xFFFF6B35)
+                        hasLockedTargets -> Color(0xFFFFAA00)
+                        else -> Color(0xFF00FF41)
+                    },
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace
                 )
+            }
+
+            //   3D Tactical Compass (bottom-left)
+            if (shootingSolution != null && selectedTargetId != null) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(16.dp)
+                ) {
+                    TacticalCompass(
+                        azimuth = shootingSolution.azimuth,
+                        elevation = shootingSolution.elevation,
+                        confidence = shootingSolution.confidence
+                    )
+                }
             }
         }
     }
@@ -152,7 +193,7 @@ private fun createExoPlayer(context: Context): ExoPlayer {
     return ExoPlayer.Builder(context).build().apply {
         val mediaItem = MediaItem.fromUri("android.resource://${context.packageName}/${R.raw.field_video}")
         setMediaItem(mediaItem)
-        repeatMode = Player.REPEAT_MODE_ALL // Loop the video
+        repeatMode = Player.REPEAT_MODE_ALL
         playWhenReady = true
         prepare()
     }
@@ -160,10 +201,8 @@ private fun createExoPlayer(context: Context): ExoPlayer {
 
 @Composable
 private fun SimulatedTargets(videoTime: Long): List<DetectedTarget> {
-    // ✅ UPDATED: Only HUMAN and UNKNOWN targets
     val targets = mutableListOf<DetectedTarget>()
 
-    // Target 1: HUMAN - Appears at 2 seconds
     if (videoTime > 2000) {
         targets.add(
             DetectedTarget(
@@ -175,13 +214,12 @@ private fun SimulatedTargets(videoTime: Long): List<DetectedTarget> {
                 worldLongitude = 32.014,
                 distance = 420.0,
                 bearing = 245.0,
-                targetType = TargetType.HUMAN,  // ← Changed to HUMAN
+                targetType = TargetType.HUMAN,
                 timestamp = System.currentTimeMillis()
             )
         )
     }
 
-    // Target 2: UNKNOWN - Appears at 8 seconds
     if (videoTime > 8000) {
         targets.add(
             DetectedTarget(
@@ -193,13 +231,12 @@ private fun SimulatedTargets(videoTime: Long): List<DetectedTarget> {
                 worldLongitude = 32.015,
                 distance = 580.0,
                 bearing = 260.0,
-                targetType = TargetType.UNKNOWN,  // ← Kept as UNKNOWN
+                targetType = TargetType.UNKNOWN,
                 timestamp = System.currentTimeMillis()
             )
         )
     }
 
-    // Target 3: HUMAN - Appears at 15 seconds
     if (videoTime > 15000 && videoTime < 25000) {
         targets.add(
             DetectedTarget(
@@ -211,7 +248,7 @@ private fun SimulatedTargets(videoTime: Long): List<DetectedTarget> {
                 worldLongitude = 32.013,
                 distance = 350.0,
                 bearing = 250.0,
-                targetType = TargetType.HUMAN,  // ← Changed to HUMAN
+                targetType = TargetType.HUMAN,
                 timestamp = System.currentTimeMillis()
             )
         )
@@ -224,20 +261,21 @@ private fun SimulatedTargets(videoTime: Long): List<DetectedTarget> {
 private fun EnhancedTargetMarker(
     target: DetectedTarget,
     isLocked: Boolean,
-    onLockClick: () -> Unit
+    isSelected: Boolean,  // ← NEW
+    onLockClick: () -> Unit,
+    onTargetClick: () -> Unit  // ← NEW
 ) {
-    // ✅ BRIGHT COLORS based on type and lock status
     val markerColor = when {
-        isLocked -> Color(0xFFFF6B35)  // Bright Orange for locked
-        target.targetType == TargetType.HUMAN -> Color(0xFF00FF41)  // Bright Green
-        else -> Color(0xFF00D9FF)  // Bright Cyan for unknown
+        isSelected -> Color(0xFFFF6B35)     // Orange for selected
+        isLocked -> Color(0xFFFFAA00)       // Amber for locked
+        target.targetType == TargetType.HUMAN -> Color(0xFF00FF41)  // Green
+        else -> Color(0xFF00D9FF)           // Cyan
     }
 
-    // Animate pulsing effect (only when unlocked)
     var pulseAlpha by remember { mutableStateOf(1f) }
 
-    LaunchedEffect(target.id, isLocked) {
-        if (!isLocked) {
+    LaunchedEffect(target.id, isLocked, isSelected) {
+        if (!isLocked && !isSelected) {
             while (true) {
                 pulseAlpha = 0.4f
                 delay(600)
@@ -245,7 +283,7 @@ private fun EnhancedTargetMarker(
                 delay(600)
             }
         } else {
-            pulseAlpha = 1f  // Solid when locked
+            pulseAlpha = 1f
         }
     }
 
@@ -256,13 +294,22 @@ private fun EnhancedTargetMarker(
         Box(
             modifier = Modifier
                 .offset(x = xPos, y = yPos)
+                .clickable { onTargetClick() }  // ← Make target clickable for selection
         ) {
-            // Target box with enhanced visuals
+            // Target box
             Canvas(modifier = Modifier.size(80.dp)) {
-                val boxSize = if (isLocked) 60f else 50f  // Larger when locked
+                val boxSize = when {
+                    isSelected -> 65f  // Largest
+                    isLocked -> 60f    // Medium
+                    else -> 50f        // Small
+                }
                 val centerX = size.width / 2
                 val centerY = size.height / 2
-                val strokeWidth = if (isLocked) 4f else 3f  // Thicker when locked
+                val strokeWidth = when {
+                    isSelected -> 5f   // Thickest
+                    isLocked -> 4f     // Medium
+                    else -> 3f         // Thin
+                }
 
                 // Draw target box
                 drawRect(
@@ -272,7 +319,17 @@ private fun EnhancedTargetMarker(
                     style = Stroke(width = strokeWidth)
                 )
 
-                // Corner brackets (enhanced)
+                //  Pulsing glow for selected target
+                if (isSelected) {
+                    drawRect(
+                        color = markerColor.copy(alpha = 0.3f),
+                        topLeft = Offset(centerX - boxSize / 2 - 4, centerY - boxSize / 2 - 4),
+                        size = Size(boxSize + 8, boxSize + 8),
+                        style = Stroke(width = 2f)
+                    )
+                }
+
+                // Corner brackets
                 val bracketSize = 15f
                 val positions = listOf(
                     Offset(centerX - boxSize / 2, centerY - boxSize / 2),
@@ -311,13 +368,12 @@ private fun EnhancedTargetMarker(
                     strokeWidth = 2f
                 )
 
-                // Lock indicator icon (if locked)
+                // Lock indicator
                 if (isLocked) {
                     val lockSize = 12f
                     val lockX = centerX + boxSize / 2 - lockSize - 8f
                     val lockY = centerY - boxSize / 2 + 8f
 
-                    // Lock body
                     drawRect(
                         color = markerColor,
                         topLeft = Offset(lockX, lockY + lockSize * 0.4f),
@@ -325,7 +381,6 @@ private fun EnhancedTargetMarker(
                         style = Stroke(width = 2f)
                     )
 
-                    // Lock shackle
                     drawArc(
                         color = markerColor,
                         startAngle = 180f,
@@ -336,9 +391,30 @@ private fun EnhancedTargetMarker(
                         style = Stroke(width = 2f)
                     )
                 }
+
+                //  Selection indicator (star/asterisk for selected)
+                if (isSelected) {
+                    val starSize = 8f
+                    val starX = centerX - boxSize / 2 + 8f
+                    val starY = centerY - boxSize / 2 + 8f
+
+                    // Draw asterisk/star
+                    drawLine(
+                        color = markerColor,
+                        start = Offset(starX - starSize, starY),
+                        end = Offset(starX + starSize, starY),
+                        strokeWidth = 3f
+                    )
+                    drawLine(
+                        color = markerColor,
+                        start = Offset(starX, starY - starSize),
+                        end = Offset(starX, starY + starSize),
+                        strokeWidth = 3f
+                    )
+                }
             }
 
-            // Target info card with Lock/Unlock button
+            // Target info card
             Card(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -352,7 +428,6 @@ private fun EnhancedTargetMarker(
                     modifier = Modifier.padding(8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Target type and ID
                     Text(
                         text = "${target.id} | ${target.targetType.name}",
                         color = markerColor,
@@ -361,7 +436,6 @@ private fun EnhancedTargetMarker(
                         fontWeight = FontWeight.Bold
                     )
 
-                    // Distance
                     Text(
                         text = "${target.distance.toInt()}m",
                         color = MilitaryTextPrimary,
@@ -369,7 +443,6 @@ private fun EnhancedTargetMarker(
                         fontFamily = FontFamily.Monospace
                     )
 
-                    // Confidence
                     Text(
                         text = "CONF: ${(target.confidence * 100).toInt()}%",
                         color = if (target.confidence > 0.8f) Color(0xFF00FF41) else Color(0xFFFFAA00),
@@ -379,7 +452,7 @@ private fun EnhancedTargetMarker(
 
                     Spacer(modifier = Modifier.height(6.dp))
 
-                    // ✅ LOCK/UNLOCK BUTTON
+                    // Lock/Unlock button
                     Button(
                         onClick = onLockClick,
                         modifier = Modifier
@@ -387,20 +460,32 @@ private fun EnhancedTargetMarker(
                             .widthIn(min = 80.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (isLocked) {
-                                Color(0xFFFF6B35)  // Orange when locked
+                                Color(0xFFFFAA00)
                             } else {
-                                Color(0xFF00FF41)  // Green when unlocked
+                                Color(0xFF00FF41)
                             }
                         ),
                         shape = RoundedCornerShape(4.dp),
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = if (isLocked) "🔓 UNLOCK" else "🔒 LOCK",
+                            text = if (isLocked) " UNLOCK" else " LOCK",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.Black,
                             fontFamily = FontFamily.Monospace
+                        )
+                    }
+
+                    //  Selection status
+                    if (isLocked) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = if (isSelected) "★ SELECTED" else "TAP TO SELECT",
+                            color = if (isSelected) Color(0xFFFF6B35) else Color(0xFF00FF41).copy(alpha = 0.6f),
+                            fontSize = 8.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                         )
                     }
                 }
@@ -409,17 +494,15 @@ private fun EnhancedTargetMarker(
     }
 }
 
+// Keep existing CrosshairOverlay, ScanLineOverlay, and VideoStatusOverlay functions unchanged
 @Composable
 private fun CrosshairOverlay() {
     Canvas(modifier = Modifier.fillMaxSize()) {
         val centerX = size.width / 2
         val centerY = size.height / 2
         val crosshairSize = 40f
-
-        // Bright green color
         val color = Color(0xFF00FF41)
 
-        // Main crosshair lines
         drawLine(
             color = color.copy(alpha = 0.7f),
             start = Offset(centerX - crosshairSize, centerY),
@@ -433,14 +516,12 @@ private fun CrosshairOverlay() {
             strokeWidth = 2f
         )
 
-        // Center dot
         drawCircle(
             color = color,
             radius = 3f,
             center = Offset(centerX, centerY)
         )
 
-        // Range circles
         for (i in 1..3) {
             drawCircle(
                 color = color.copy(alpha = 0.3f),
@@ -459,9 +540,8 @@ private fun CrosshairOverlay() {
 private fun ScanLineOverlay(position: Float) {
     Canvas(modifier = Modifier.fillMaxSize()) {
         val y = size.height * position
-        val color = Color(0xFF00FF41)  // Bright green
+        val color = Color(0xFF00FF41)
 
-        // Scanning line
         drawLine(
             color = color.copy(alpha = 0.5f),
             start = Offset(0f, y),
@@ -469,7 +549,6 @@ private fun ScanLineOverlay(position: Float) {
             strokeWidth = 2f
         )
 
-        // Fade effect
         val fadeHeight = 80f
         for (i in 0 until fadeHeight.toInt() step 2) {
             val alpha = (1f - (i / fadeHeight)) * 0.2f

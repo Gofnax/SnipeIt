@@ -98,11 +98,11 @@ class RaspberryPiClient {
                 testHttpApi(ipAddress)
             }
 
-            Log.d(TAG, "✅ Successfully connected to RPi")
+            Log.d(TAG, " Successfully connected to RPi")
 
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Connection failed: ${e.message}", e)
-            Log.d(TAG, "⚠️ Falling back to mock data generation")
+            Log.e(TAG, " Connection failed: ${e.message}", e)
+            Log.d(TAG, " Falling back to mock data generation")
             startMockDataGeneration()
         }
     }
@@ -136,7 +136,7 @@ class RaspberryPiClient {
 
     private fun handleWebSocketMessage(message: String) {
         try {
-            Log.d(TAG, "📨 Received: $message")
+            Log.d(TAG, " Received: $message")
 
             val dataType = gson.fromJson(message, Map::class.java)["type"] as? String
 
@@ -184,15 +184,15 @@ class RaspberryPiClient {
 
                 if (isSuccess) {
                     val response = connection.inputStream.bufferedReader().readText()
-                    Log.d(TAG, "✅ HTTP API response: $response")
+                    Log.d(TAG, " HTTP API response: $response")
                 } else {
-                    Log.w(TAG, "⚠️ HTTP API returned code: $responseCode")
+                    Log.w(TAG, " HTTP API returned code: $responseCode")
                 }
 
                 connection.disconnect()
                 isSuccess
             } catch (e: Exception) {
-                Log.e(TAG, "❌ HTTP API test failed: ${e.message}")
+                Log.e(TAG, " HTTP API test failed: ${e.message}")
                 false
             }
         }
@@ -213,12 +213,12 @@ class RaspberryPiClient {
                 val responseCode = connection.responseCode
                 val isSuccess = responseCode == 200
 
-                Log.d(TAG, if (isSuccess) "✅ Command sent: $command" else "❌ Command failed: $command")
+                Log.d(TAG, if (isSuccess) " Command sent: $command" else " Command failed: $command")
 
                 connection.disconnect()
                 isSuccess
             } catch (e: Exception) {
-                Log.e(TAG, "❌ Failed to send command: ${e.message}")
+                Log.e(TAG, " Failed to send command: ${e.message}")
                 false
             }
         }
@@ -232,12 +232,12 @@ class RaspberryPiClient {
      * Start mock data generation - FIXED with Boolean values
      */
     private fun startMockDataGeneration() {
-        Log.d(TAG, "🎭 Starting mock data generation")
+        Log.d(TAG, " Starting mock data generation")
 
         mockDataJob?.cancel()
         mockDataJob = scope.launch {
             while (isActive) {
-                // Generate mock sensor data
+                // 1. Generate mock sensor data
                 _sensorData.value = SensorData(
                     temperature = 20.0 + (Math.random() * 10),
                     humidity = 50.0 + (Math.random() * 20),
@@ -249,28 +249,66 @@ class RaspberryPiClient {
                     timestamp = System.currentTimeMillis()
                 )
 
-                // Generate mock shooting solution
-                _shootingSolution.value = ShootingSolution(
-                    azimuth = 245.0 + (Math.random() * 10),
-                    elevation = 12.0 + (Math.random() * 5),
-                    windageAdjustment = 2.0 + (Math.random() * 2),
-                    elevationAdjustment = 1.5 + (Math.random() * 1),
-                    confidence = 0.75f + (Math.random() * 0.2).toFloat(),
-                    timestamp = System.currentTimeMillis()
+                //  2. GENERATE MOCK TARGETS (THIS WAS MISSING!)
+                val mockTargets = listOf(
+                    DetectedTarget(
+                        id = "T1",
+                        confidence = 0.85f,
+                        screenX = 0.3f,
+                        screenY = 0.4f,
+                        worldLatitude = 35.093,
+                        worldLongitude = 32.014,
+                        distance = 420.0,
+                        bearing = 245.0,
+                        targetType = TargetType.HUMAN,
+                        timestamp = System.currentTimeMillis()
+                    ),
+                    DetectedTarget(
+                        id = "T2",
+                        confidence = 0.72f,
+                        screenX = 0.7f,
+                        screenY = 0.5f,
+                        worldLatitude = 35.094,
+                        worldLongitude = 32.015,
+                        distance = 580.0,
+                        bearing = 260.0,
+                        targetType = TargetType.UNKNOWN,
+                        timestamp = System.currentTimeMillis()
+                    )
                 )
 
-                // Update system status - FIXED with Boolean values
+                _detectedTargets.value = mockTargets
+                Log.d(TAG, " Generated ${mockTargets.size} targets")
+
+                // 3. Generate shooting solution for random target
+                if (mockTargets.isNotEmpty()) {
+                    val randomTarget = mockTargets.random()
+
+                    _shootingSolution.value = ShootingSolution(
+                        targetId = randomTarget.id,
+                        azimuth = 245.0 + (Math.random() * 10),
+                        elevation = 12.0 + (Math.random() * 5),
+                        windageAdjustment = 2.0 + (Math.random() * 2),
+                        elevationAdjustment = 1.5 + (Math.random() * 1),
+                        confidence = 0.75f + (Math.random() * 0.2).toFloat(),
+                        timestamp = System.currentTimeMillis()
+                    )
+
+                    Log.d(TAG, " Generated solution for ${randomTarget.id}: AZ=${_shootingSolution.value?.azimuth?.toInt()}° EL=${_shootingSolution.value?.elevation?.toInt()}°")
+                }
+
+                // 4. Update system status
                 _systemStatus.value = SystemStatus(
                     connectionStatus = ConnectionState.CONNECTED,
                     batteryLevel = 85,
-                    cameraStatus = true,        // Boolean: true = working
-                    gpsStatus = true,           // Boolean: true = locked
-                    rangefinderStatus = true,   // Boolean: true = ready
-                    microphoneStatus = true,    // Boolean: true = listening
+                    cameraStatus = true,
+                    gpsStatus = true,
+                    rangefinderStatus = true,
+                    microphoneStatus = true,
                     lastHeartbeat = System.currentTimeMillis()
                 )
 
-                delay(1000) // Update every second
+                delay(1500) // Update every 1.5 seconds
             }
         }
     }

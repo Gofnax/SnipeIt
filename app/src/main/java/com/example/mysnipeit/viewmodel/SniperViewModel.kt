@@ -137,9 +137,6 @@ class SniperViewModel : ViewModel() {
     }
 
     // Command methods
-    fun selectTarget(targetId: String) {
-        repository.selectTarget(targetId)
-    }
 
     fun requestCalibration() {
         repository.requestCalibration()
@@ -152,6 +149,14 @@ class SniperViewModel : ViewModel() {
     fun emergencyStop() {
         repository.emergencyStop()
     }
+
+    fun selectTarget(targetId: String) {
+        _uiState.value = _uiState.value.copy(selectedTargetId = targetId)
+    }
+
+    fun deselectTarget() {
+        _uiState.value = _uiState.value.copy(selectedTargetId = null)
+    }
 }
 
 data class SniperUiState(
@@ -159,7 +164,8 @@ data class SniperUiState(
     val isScanning: Boolean = false,
     val selectedDeviceId: String? = null,
     val connectionError: String? = null,
-    val isVideoFullscreen: Boolean = false
+    val isVideoFullscreen: Boolean = false,
+    val selectedTargetId: String? = null
 )
 
 enum class AppScreen {
