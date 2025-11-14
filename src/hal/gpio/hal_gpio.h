@@ -1,6 +1,9 @@
 #ifndef HAL_GPIO_H
 #define HAL_GPIO_H
 
+/* Standard Libraries */
+#include <stdbool.h>
+
 /* User Libraries */
 #include "../hal_types.h"
 

@@ -9,7 +9,6 @@
 /* User Libraries */
 #include "hal_gpio_config.h"
 
-
 typedef struct
 {
     uint8_t pin;    // Associates to GPIO pin on board
@@ -29,6 +28,16 @@ static GPIODevice gpio_devices[eGPIO_DEVICE_COUNT] =
 };
 
 eHALReturnValue hal_gpio_init(void)
+{
+
+}
+
+eHALReturnValue hal_gpio_read_pin(uint32_t device_index, uint8_t pin)
+{
+
+}
+
+eHALReturnValue hal_gpio_write_pin(uint32_t device_index, uint8_t pin, bool value)
 {
 
 }

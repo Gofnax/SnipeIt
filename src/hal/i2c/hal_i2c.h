@@ -5,12 +5,14 @@
 #include <stdint.h>
 #include <stddef.h>
 
-/* Linux Specific Libraries */
-#include <linux/i2c-dev.h>
-#include <linux/i2c.h>
-
 /* User Libraries */
 #include "../hal_types.h"
+
+typedef enum eI2CDeviceNumber
+{
+    eI2C0_DEVICE,
+    eI2C_DEVICE_COUNT
+} eI2CDeviceNumber;
 
 /**
  * @brief   Sets the I2C devices configuration.
@@ -26,19 +28,6 @@
 eHALReturnValue hal_i2c_init(void);
 
 /**
- * @brief   Sets the address length of the I2C device.
- * @details Sets the device address to 7bit or 10bit.
- * @param   device_index A value from @ref eI2CDeviceNumber.
- * @param   addr_len Either zero for 7bit address or a non-zero value 
- *          for 10bit address.
- * @returns A value from @ref eHALReturnValues.
- * @retval  eRETURN_SUCCESS             successful execution
- * @retval  eRETURN_INVALID_DEVICE      device is not from @ref eI2CDeviceNumber 
- * @retval  eRETURN_DEVICE_ERROR        failure to read from device or it doesn't support 10bit address
- */
-eHALReturnValue hal_i2c_set_address_length(uint32_t device_index, uint8_t addr_len);
-
-/**
  * @brief   Sets the address of the I2C device.
  * @details Sets the address used by the indicated device on the I2C bus
  *          to which it's connected.
@@ -48,25 +37,7 @@ eHALReturnValue hal_i2c_set_address_length(uint32_t device_index, uint8_t addr_l
  * @retval  eRETURN_SUCCESS             successful execution
  * @retval  eRETURN_INVALID_DEVICE      device is not from @ref eI2CDeviceNumber
  */
-eHALReturnValue hal_i2c_set_address(uint32_t device_index, uint16_t address);
-
-/**
- * @brief   Transfers an array of I2C messages.
- * @details Using the i2c_msg struct, transfers a number of messages specified by count.
- *          Each message can be either a reading or writing message. Only 1 stop bit is
- *          transmitted after all the messages have been transfered.
- * @param   device_index A value from @ref eI2CDeviceNumber.
- * @param   messages A pointer to an array of i2c_msg, representing the messages.
- * @param   count The number of messages pointed to by the array. Must not be greater
- *          than I2C_RDWR_IOCTL_MAX_MSGS.
- * @returns A value from @ref eHALReturnValues.
- * @retval  eRETURN_SUCCESS             successful execution
- * @retval  eRETURN_INVALID_DEVICE      device is not from @ref eI2CDeviceNumber
- * @retval  eRETURN_NULL_PARAMETER      messages is NULL
- * @retval  eRETURN_INVALID_PARAMETER   count is out of range
- * @retval  eRETURN_DEVICE_ERROR        failure to transfer the messages
- */
-eHALReturnValue hal_i2c_transfer(uint32_t device_index, struct i2c_msg* messages, size_t count);
+eHALReturnValue hal_i2c_set_address(uint32_t device_index, uint8_t address);
 
 /**
  * @brief   Writes the contents of buffer to an I2C device.
