@@ -6,6 +6,8 @@
         "hal_uart.h": "c",
         "types.h": "c",
         "hal_i2c.h": "c",
-        "timerfd.h": "c"
+        "timerfd.h": "c",
+        "stddef.h": "c",
+        "ioctl.h": "c"
     }
 }
