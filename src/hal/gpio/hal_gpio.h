@@ -7,19 +7,48 @@
 /* User Libraries */
 #include "../hal_types.h"
 
-// GPIODevice mode values
-#define GPIO_INPUT 0
-#define GPIO_OUTPUT 1
+/**
+ * @brief   Sets the GPIO devices configuration.
+ * @details Opens the GPIO chip and configures all GPIO devices according to
+ *          configuration specified in 'hal_gpio_config.h'. Requests and
+ *          configures GPIO lines for each device.
+ * @returns A value from @ref eHALReturnValues.
+ * @retval  eRETURN_SUCCESS             successful execution
+ * @retval  eRETURN_INVALID_PARAMETER   failure to define pull or edge configuration
+ * @retval  eRETURN_DEVICE_ERROR        failure to open chip or configure lines
+ */
+eHALReturnValue hal_gpio_init(void);
 
-// GPIODevice pull values
-#define GPIO_NO_PULL 0
-#define GPIO_PULLUP 1
-#define GPIO_PULLDOWN 2
+/**
+ * @brief   Read the value of a GPIO pin.
+ * @details Reads the current value (high/low) from the GPIO pin associated
+ *          with the specified device.
+ * @param   device_index A value from @ref eGPIODeviceNumber.
+ * @param   buffer Pointer to store the read value (true = high, false = low).
+ * @returns A value from @ref eHALReturnValues.
+ * @retval  eRETURN_SUCCESS         successful execution
+ * @retval  eRETURN_INVALID_DEVICE  device is not from @ref eGPIODeviceNumber
+ * @retval  eRETURN_NULL_PARAMETER  buffer is NULL
+ * @retval  eRETURN_DEVICE_ERROR    device not configured as input or read failed
+ */
+eHALReturnValue hal_gpio_read(uint32_t device_index, bool* buffer);
 
-// GPIODevice edge values
-#define GPIO_EDGE_NONE 0
-#define GPIO_EDGE_RISING 1
-#define GPIO_EDGE_FALLING 2
-#define GPIO_EDGE_BOTH 3
+/**
+ * @brief   Write a value to a GPIO pin.
+ * @details Sets the GPIO pin associated with the specified device to
+ *          high or low.
+ * @param   device_index A value from @ref eGPIODeviceNumber.
+ * @param   value The value to write (true = high, false = low).
+ * @returns A value from @ref eHALReturnValues.
+ * @retval  eRETURN_SUCCESS         successful execution
+ * @retval  eRETURN_INVALID_DEVICE  device is not from @ref eGPIODeviceNumber
+ * @retval  eRETURN_DEVICE_ERROR    device not configured as output or write failed
+ */
+eHALReturnValue hal_gpio_write(uint32_t device_index, bool value);
+
+/**
+ * To be implemented later
+ */
+eHALReturnValue hal_gpio_set_direction(void);
 
 #endif
