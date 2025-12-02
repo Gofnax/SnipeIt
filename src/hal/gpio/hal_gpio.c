@@ -39,34 +39,37 @@ static GPIODevice gpio_devices[eGPIO_DEVICE_COUNT] =
     }
 };
 
+// May need future editing as we can allow in the final products for
+// some of the devices not to work as needed, and offer limited service.
 eHALReturnValue hal_gpio_init(void)
 {
-    if(gpio_chip = gpiod_chip_open(GPIO_CHIP_PATH) == NULL)
+    gpio_chip = gpiod_chip_open(GPIO_CHIP_PATH);
+    if(gpio_chip == NULL)
     {
         return eRETURN_DEVICE_ERROR;
     }
 
-    for(int i = 0; i < eGPIO_DEVICE_COUNT; ++i)
+    for(uint32_t i = 0; i < eGPIO_DEVICE_COUNT; ++i)
     {
         gpio_devices[i].line = gpiod_chip_get_line(gpio_chip, gpio_devices[i].pin);
+        if(gpio_devices[i].line == NULL)
+        {
+            return eRETURN_DEVICE_ERROR;
+        }
 
         struct gpiod_line_request_config config = {
             .consumer = "SnipeItGPIO",
-            .request_type = -1,
-            .flags = -1
+            .request_type = 0,
+            .flags = 0
         };
-
+        
         switch(gpio_devices[i].edge)
         {
         case eGPIO_EDGE_NONE:   // If the device is not configured to be used in interrput mode
             if(gpio_devices[i].direction == eGPIO_INPUT)
-            {
                 config.request_type = GPIOD_LINE_REQUEST_DIRECTION_INPUT;
-            }
             else
-            {
                 config.request_type = GPIOD_LINE_REQUEST_DIRECTION_OUTPUT;
-            }
             break;
         case eGPIO_EDGE_RISING:
             config.request_type = GPIOD_LINE_REQUEST_EVENT_RISING_EDGE;
@@ -78,6 +81,11 @@ eHALReturnValue hal_gpio_init(void)
             config.request_type = GPIOD_LINE_REQUEST_EVENT_BOTH_EDGES;
             break;
         default:
+            return eRETURN_INVALID_PARAMETER;
+        }
+        // Edge configuration only relevant for INPUT mode
+        if(gpio_devices[i].direction == eGPIO_OUTPUT && gpio_devices[i].edge != eGPIO_EDGE_NONE)
+        {
             return eRETURN_INVALID_PARAMETER;
         }
 
