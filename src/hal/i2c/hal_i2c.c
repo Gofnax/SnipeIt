@@ -32,7 +32,7 @@ static I2CDevice i2c_devices[eI2C_DEVICE_COUNT] = {
 
 static eHALReturnValue hal_i2c_transfer(uint32_t device_index, struct i2c_msg* messages, size_t count)
 {
-    if(device_index > eI2C_DEVICE_COUNT)
+    if(device_index >= eI2C_DEVICE_COUNT)
     {
         return eRETURN_INVALID_DEVICE;
     }
@@ -89,7 +89,7 @@ eHALReturnValue hal_i2c_init(void)
 
 eHALReturnValue hal_i2c_set_address(uint32_t device_index, uint8_t address)
 {
-    if(device_index > eI2C_DEVICE_COUNT)
+    if(device_index >= eI2C_DEVICE_COUNT)
     {
         return eRETURN_INVALID_DEVICE;
     }
@@ -101,6 +101,10 @@ eHALReturnValue hal_i2c_set_address(uint32_t device_index, uint8_t address)
 
 eHALReturnValue hal_i2c_write(uint32_t device_index, void* buffer, size_t num_bytes)
 {
+    if(device_index >= eI2C_DEVICE_COUNT)
+    {
+        return eRETURN_INVALID_DEVICE;
+    }
     if(buffer == NULL)
     {
         return eRETURN_NULL_PARAMETER;
@@ -120,6 +124,10 @@ eHALReturnValue hal_i2c_write(uint32_t device_index, void* buffer, size_t num_by
 
 eHALReturnValue hal_i2c_write_reg(uint32_t device_index, uint16_t reg, size_t reg_len, void* buffer, size_t num_bytes)
 {
+    if(device_index >= eI2C_DEVICE_COUNT)
+    {
+        return eRETURN_INVALID_DEVICE;
+    }
     if(buffer == NULL)
     {
         return eRETURN_NULL_PARAMETER;
@@ -145,6 +153,10 @@ eHALReturnValue hal_i2c_write_reg(uint32_t device_index, uint16_t reg, size_t re
 
 eHALReturnValue hal_i2c_read(uint32_t device_index, void* buffer, size_t num_bytes)
 {
+    if(device_index >= eI2C_DEVICE_COUNT)
+    {
+        return eRETURN_INVALID_DEVICE;
+    }
     if(buffer == NULL)
     {
         return eRETURN_NULL_PARAMETER;
@@ -162,6 +174,10 @@ eHALReturnValue hal_i2c_read(uint32_t device_index, void* buffer, size_t num_byt
 
 eHALReturnValue hal_i2c_read_reg(uint32_t device_index, uint16_t reg, size_t reg_len, void* buffer, size_t num_bytes)
 {
+    if(device_index >= eI2C_DEVICE_COUNT)
+    {
+        return eRETURN_INVALID_DEVICE;
+    }
     if(buffer == NULL)
     {
         return eRETURN_NULL_PARAMETER;

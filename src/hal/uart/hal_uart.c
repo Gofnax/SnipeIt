@@ -144,7 +144,7 @@ eHALReturnValue hal_uart_init(void)
 
 eHALReturnValue hal_uart_read(uint32_t device_index, void* buffer, size_t num_bytes)
 {
-    if(device_index > eUART_DEVICE_COUNT)
+    if(device_index >= eUART_DEVICE_COUNT)
     {
         return eRETURN_INVALID_DEVICE;
     }
@@ -179,7 +179,7 @@ eHALReturnValue hal_uart_read(uint32_t device_index, void* buffer, size_t num_by
 
 eHALReturnValue hal_uart_write(uint32_t device_index, const void* buffer, size_t num_bytes)
 {
-    if(device_index > eUART_DEVICE_COUNT)
+    if(device_index >= eUART_DEVICE_COUNT)
     {
         return eRETURN_INVALID_DEVICE;
     }

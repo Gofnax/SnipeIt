@@ -113,14 +113,28 @@ eHALReturnValue hal_gpio_init(void)
     return eRETURN_SUCCESS;
 }
 
-eHALReturnValue hal_gpio_read(uint32_t device_index, bool* buffer)
+eHALReturnValue hal_gpio_read(uint32_t device_index, void* buffer)
 {
 
 }
 
-eHALReturnValue hal_gpio_write(uint32_t device_index, bool value)
+eHALReturnValue hal_gpio_write(uint32_t device_index, int value)
 {
+    if(device_index >= eGPIO_DEVICE_COUNT)
+    {
+        return eRETURN_INVALID_DEVICE;
+    }
+    if(gpio_devices[device_index].direction != eGPIO_OUTPUT)
+    {
+        return eRETURN_DEVICE_ERROR;
+    }
 
+    if(gpiod_line_set_value(gpio_devices[device_index].line, value ? 1 : 0) < 0)
+    {
+        return eRETURN_DEVICE_ERROR;
+    }
+
+    return eRETURN_SUCCESS;
 }
 
 // TO-DO implementation
