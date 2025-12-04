@@ -1,8 +1,5 @@
 #include "hal_gpio.h"
 
-/* Standard Libraries */
-#include <stdint.h>
-
 /* Linux Specific Libraries */
 #include <gpiod.h>  // requires to add the flag '-lgpiod' when compiling
 
@@ -65,7 +62,7 @@ eHALReturnValue hal_gpio_init(void)
         
         switch(gpio_devices[i].edge)
         {
-        case eGPIO_EDGE_NONE:   // If the device is not configured to be used in interrput mode
+        case eGPIO_EDGE_NONE:   // If we didn't configure the device to be used in interrput mode
             if(gpio_devices[i].direction == eGPIO_INPUT)
                 config.request_type = GPIOD_LINE_REQUEST_DIRECTION_INPUT;
             else
@@ -113,9 +110,29 @@ eHALReturnValue hal_gpio_init(void)
     return eRETURN_SUCCESS;
 }
 
-eHALReturnValue hal_gpio_read(uint32_t device_index, void* buffer)
+eHALReturnValue hal_gpio_read(uint32_t device_index, int* buffer)
 {
+    if(device_index >= eGPIO_DEVICE_COUNT)
+    {
+        return eRETURN_INVALID_DEVICE;
+    }
+    if(gpio_devices[device_index].direction != eGPIO_INPUT)
+    {
+        return eRETURN_DEVICE_ERROR;
+    }
+    if(buffer == NULL)
+    {
+        return eRETURN_NULL_PARAMETER;
+    }
 
+    int pin_value = gpiod_line_get_value(gpio_devices[device_index].line);
+    if(pin_value < 0)
+    {
+        return eRETURN_DEVICE_ERROR;
+    }
+    
+    *buffer = pin_value;
+    return eRETURN_SUCCESS;
 }
 
 eHALReturnValue hal_gpio_write(uint32_t device_index, int value)

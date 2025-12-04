@@ -1,6 +1,9 @@
 #ifndef HAL_GPIO_H
 #define HAL_GPIO_H
 
+/* Standard Libraries */
+#include <stdint.h>
+
 /* User Libraries */
 #include "../hal_types.h"
 
@@ -28,7 +31,7 @@ eHALReturnValue hal_gpio_init(void);
  * @retval  eRETURN_NULL_PARAMETER  buffer is NULL
  * @retval  eRETURN_DEVICE_ERROR    device not configured as input or read failed
  */
-eHALReturnValue hal_gpio_read(uint32_t device_index, void* buffer);
+eHALReturnValue hal_gpio_read(uint32_t device_index, int* buffer);
 
 /**
  * @brief   Write a value to a GPIO pin.
