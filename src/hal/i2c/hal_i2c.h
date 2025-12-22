@@ -61,7 +61,7 @@ eHALReturnValue hal_i2c_write(uint32_t device_index, void* buffer, size_t num_by
  *          transaction of according to the I2C message protocol [address + W bit][data].
  * @param   device_index A value from @ref eI2CDeviceNumber.
  * @param   reg The register to be written to.
- * @param   reg_len The length in bits of the register
+ * @param   reg_len The length in bytes of the register
  * @param   buffer A pointer to the transmit buffer.
  * @param   num_bytes The number of bytes to write to the device.
  * @returns A value from @ref eHALReturnValues.
@@ -94,7 +94,7 @@ eHALReturnValue hal_i2c_read(uint32_t device_index, void* buffer, size_t num_byt
  *          transaction of according to the I2C message protocol [address + R bit][data].
  * @param   device_index A value from @ref eI2CDeviceNumber.
  * @param   reg The register to be read from.
- * @param   reg_len The length in bits of the register
+ * @param   reg_len The length in bytes of the register
  * @param   buffer A pointer to the receive buffer.
  * @param   num_bytes The number of bytes to read from the device.
  * @returns A value from @ref eHALReturnValues.

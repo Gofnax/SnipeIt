@@ -2,6 +2,8 @@
 
 /* Standard Libraries */
 #include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
 
 /* Linux Specific Libraries */
 #include <linux/i2c-dev.h>
@@ -133,22 +135,36 @@ eHALReturnValue hal_i2c_write_reg(uint32_t device_index, uint16_t reg, size_t re
         return eRETURN_NULL_PARAMETER;
     }
 
-    struct i2c_msg messages[I2C_DOUBLE_MESSAGE] = {
-        {
-            .addr = i2c_devices[device_index].address,
-            .flags = i2c_devices[device_index].flags,
-            .len = reg_len,
-            .buf = (uint8_t*)&reg
-        },
-        {
-            .addr = i2c_devices[device_index].address,
-            .flags = i2c_devices[device_index].flags,
-            .len = num_bytes,
-            .buf = buffer
-        }
-    };
+    uint8_t* reg_buffer_combined = (uint8_t*)malloc(reg_len + num_bytes);
+    reg_buffer_combined[0] = reg;
+    memcpy(&reg_buffer_combined[1], buffer, num_bytes);
 
-    return hal_i2c_transfer(device_index, messages, I2C_DOUBLE_MESSAGE);
+    struct i2c_msg message = {
+        .addr = i2c_devices[device_index].address,
+        .flags = i2c_devices[device_index].flags,
+        .len = reg_len + num_bytes,
+        .buf = reg_buffer_combined
+    };
+    
+    // struct i2c_msg messages[I2C_DOUBLE_MESSAGE] = {
+    //     {
+    //         .addr = i2c_devices[device_index].address,
+    //         .flags = i2c_devices[device_index].flags,
+    //         .len = reg_len,
+    //         .buf = (uint8_t*)&reg
+    //     },
+    //     {
+    //         .addr = i2c_devices[device_index].address,
+    //         .flags = i2c_devices[device_index].flags,
+    //         .len = num_bytes,
+    //         .buf = buffer
+    //     }
+    // };
+
+    // eHALReturnValue ret_val = hal_i2c_transfer(device_index, messages, I2C_DOUBLE_MESSAGE);
+    eHALReturnValue ret_val = hal_i2c_transfer(device_index, &message, I2C_SINGLE_MESSAGE);
+    free(reg_buffer_combined);
+    return ret_val;
 }
 
 eHALReturnValue hal_i2c_read(uint32_t device_index, void* buffer, size_t num_bytes)
