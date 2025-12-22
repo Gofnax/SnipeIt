@@ -2,7 +2,6 @@
 
 /* Standard Libraries */
 #include <stddef.h>
-#include <stdlib.h>
 #include <string.h>
 
 /* Linux Specific Libraries */
@@ -14,6 +13,8 @@
 
 #define I2C_SINGLE_MESSAGE 1
 #define I2C_DOUBLE_MESSAGE 2
+
+#define I2C_MAX_MESSAGE_SIZE_BYTES 8
 
 typedef struct
 {
@@ -130,14 +131,14 @@ eHALReturnValue hal_i2c_write_reg(uint32_t device_index, uint16_t reg, size_t re
     {
         return eRETURN_INVALID_DEVICE;
     }
-    if(buffer == NULL)
+    if(buffer == NULL || num_bytes + reg_len > I2C_MAX_MESSAGE_SIZE_BYTES)
     {
         return eRETURN_NULL_PARAMETER;
     }
 
-    uint8_t* reg_buffer_combined = (uint8_t*)malloc(reg_len + num_bytes);
-    reg_buffer_combined[0] = reg;
-    memcpy(&reg_buffer_combined[1], buffer, num_bytes);
+    uint8_t reg_buffer_combined[I2C_MAX_MESSAGE_SIZE_BYTES];
+    reg_buffer_combined[0] = (uint8_t)reg;
+    memcpy(&reg_buffer_combined[reg_len], buffer, num_bytes);
 
     struct i2c_msg message = {
         .addr = i2c_devices[device_index].address,
@@ -145,25 +146,7 @@ eHALReturnValue hal_i2c_write_reg(uint32_t device_index, uint16_t reg, size_t re
         .len = reg_len + num_bytes,
         .buf = reg_buffer_combined
     };
-    
-    // struct i2c_msg messages[I2C_DOUBLE_MESSAGE] = {
-    //     {
-    //         .addr = i2c_devices[device_index].address,
-    //         .flags = i2c_devices[device_index].flags,
-    //         .len = reg_len,
-    //         .buf = (uint8_t*)&reg
-    //     },
-    //     {
-    //         .addr = i2c_devices[device_index].address,
-    //         .flags = i2c_devices[device_index].flags,
-    //         .len = num_bytes,
-    //         .buf = buffer
-    //     }
-    // };
-
-    // eHALReturnValue ret_val = hal_i2c_transfer(device_index, messages, I2C_DOUBLE_MESSAGE);
     eHALReturnValue ret_val = hal_i2c_transfer(device_index, &message, I2C_SINGLE_MESSAGE);
-    free(reg_buffer_combined);
     return ret_val;
 }
 

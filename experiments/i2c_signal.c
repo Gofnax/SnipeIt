@@ -56,6 +56,9 @@ int main(void)
     ret_val = hal_i2c_read_reg(0, REG_MODE1, 1, &mode1_value, 1);
     ret_val == eRETURN_SUCCESS ? printf("Read MODE1 value for second time\n") : printf("Failed to read MODE1 value a second time\n");
     printf("MODE1 second read value: 0x%x\n", mode1_value);
+    mode1_value = 0x11;
+    ret_val = hal_i2c_write_reg(0, REG_MODE1, 1, &mode1_value, 1);  // Even after closing this program, the MODE1 value persists until poweroff and the sorts
+    ret_val == eRETURN_SUCCESS ? printf("Returned MODE1\n") : printf("Failed to return MODE1 value\n");
 
     printf("Waiting for ctrl + C\n");
     while(1)
