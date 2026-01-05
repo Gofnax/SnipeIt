@@ -171,6 +171,14 @@ class SniperViewModel : ViewModel() {
     fun deselectTarget() {
         _uiState.value = _uiState.value.copy(selectedTargetId = null)
     }
+
+    fun lockTarget(targetId: String) {
+        repository.sendLockCommand(targetId, isLocking = true)
+    }
+
+    fun unlockTarget(targetId: String) {
+        repository.sendLockCommand(targetId, isLocking = false)
+    }
 }
 
 data class SniperUiState(

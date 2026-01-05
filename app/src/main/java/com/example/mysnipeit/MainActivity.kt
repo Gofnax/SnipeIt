@@ -52,6 +52,9 @@ fun SniperApp(viewModel: SniperViewModel) {
     // User location (mock location for now - can be replaced with real GPS later)
     val userLocation = remember { LatLng( 31.518209, 34.521274) }
 
+    // Track menu state
+    var showMenu by remember { mutableStateOf(false) }
+
     when (uiState.currentScreen) {
         AppScreen.HOME -> {
             HomeScreen(
@@ -60,9 +63,7 @@ fun SniperApp(viewModel: SniperViewModel) {
                 },
                 onMapClick = {
                     viewModel.navigateToMap()
-                },
-                onDiagnosticsClick = {
-                    viewModel.navigateToDiagnostics() }
+                }
             )
         }
 
@@ -105,11 +106,29 @@ fun SniperApp(viewModel: SniperViewModel) {
                         viewModel.selectTarget(targetId)
                     }
                 },
+                onTargetLockToggle = { targetId, isLocking ->
+                    if (isLocking) {
+                        viewModel.lockTarget(targetId)
+                    } else {
+                        viewModel.unlockTarget(targetId)
+                    }
+                },
                 onConnectClick = { viewModel.connectToSystem() },
                 onDisconnectClick = { viewModel.disconnectFromSystem() },
                 onBackClick = { viewModel.goBackFromDashboard() },
-                onMenuClick = { /* TODO */ }
+                onMenuClick = { showMenu = true }
             )
+
+            // Menu dropdown
+            if (showMenu) {
+                DashboardMenu(
+                    onDismiss = { showMenu = false },
+                    onDiagnosticsClick = {
+                        showMenu = false
+                        viewModel.navigateToDiagnostics()
+                    }
+                )
+            }
         }
 
         AppScreen.DIAGNOSTICS -> {
@@ -118,4 +137,48 @@ fun SniperApp(viewModel: SniperViewModel) {
             )
         }
     }
+}
+
+@Composable
+fun DashboardMenu(
+    onDismiss: () -> Unit,
+    onDiagnosticsClick: () -> Unit
+) {
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            androidx.compose.material3.Text(
+                text = "Menu",
+                style = androidx.compose.material3.MaterialTheme.typography.titleLarge
+            )
+        },
+        text = {
+            androidx.compose.foundation.layout.Column {
+                androidx.compose.material3.TextButton(
+                    onClick = onDiagnosticsClick,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    androidx.compose.foundation.layout.Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Start,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        androidx.compose.material3.Text(
+                            text = "⚙ ",
+                            fontSize = 20.sp
+                        )
+                        androidx.compose.material3.Text(
+                            text = "Diagnostics",
+                            fontSize = 16.sp
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            androidx.compose.material3.TextButton(onClick = onDismiss) {
+                androidx.compose.material3.Text("Close")
+            }
+        }
+    )
 }

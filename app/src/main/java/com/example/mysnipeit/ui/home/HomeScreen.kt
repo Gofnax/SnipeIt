@@ -17,8 +17,7 @@ import com.example.mysnipeit.ui.theme.*
 @Composable
 fun HomeScreen(
     onDeviceListClick: () -> Unit,
-    onMapClick: () -> Unit,
-    onDiagnosticsClick: () -> Unit = {}
+    onMapClick: () -> Unit
 ) {
     // Debug logging
     Log.d("HomeScreen", "HomeScreen composing...")
@@ -100,39 +99,6 @@ fun HomeScreen(
                     fontFamily = FontFamily.Monospace,
                     color = MilitaryTextPrimary
                 )
-            }
-
-            // Diagnostics Button - WITH DEBUG LOGGING
-            Button(
-                onClick = {
-                    onDiagnosticsClick()
-                                    },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(70.dp)
-                    .padding(vertical = 8.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MilitaryBorderColor
-                ),
-                border = androidx.compose.foundation.BorderStroke(2.dp, MilitaryWarningAmber)
-            ) {
-                Row(
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "⚙ ",
-                        fontSize = 20.sp,
-                        color = MilitaryWarningAmber
-                    )
-                    Text(
-                        text = "DIAGNOSTICS",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace,
-                        color = MilitaryTextPrimary
-                    )
-                }
             }
 
             Spacer(modifier = Modifier.weight(1f))
