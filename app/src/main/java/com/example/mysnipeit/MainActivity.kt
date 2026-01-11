@@ -4,11 +4,12 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.mysnipeit.ui.theme.MySniperItTheme
 import com.example.mysnipeit.viewmodel.SniperViewModel
@@ -144,30 +145,30 @@ fun DashboardMenu(
     onDismiss: () -> Unit,
     onDiagnosticsClick: () -> Unit
 ) {
-    androidx.compose.material3.AlertDialog(
+    AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            androidx.compose.material3.Text(
+            Text(
                 text = "Menu",
-                style = androidx.compose.material3.MaterialTheme.typography.titleLarge
+                style = MaterialTheme.typography.titleLarge
             )
         },
         text = {
-            androidx.compose.foundation.layout.Column {
-                androidx.compose.material3.TextButton(
+            Column {
+                TextButton(
                     onClick = onDiagnosticsClick,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    androidx.compose.foundation.layout.Row(
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.Start,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        androidx.compose.material3.Text(
+                        Text(
                             text = "⚙ ",
                             fontSize = 20.sp
                         )
-                        androidx.compose.material3.Text(
+                        Text(
                             text = "Diagnostics",
                             fontSize = 16.sp
                         )
@@ -176,8 +177,8 @@ fun DashboardMenu(
             }
         },
         confirmButton = {
-            androidx.compose.material3.TextButton(onClick = onDismiss) {
-                androidx.compose.material3.Text("Close")
+            TextButton(onClick = onDismiss) {
+                Text("Close")
             }
         }
     )
