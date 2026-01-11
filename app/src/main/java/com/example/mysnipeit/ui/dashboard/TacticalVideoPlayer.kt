@@ -41,7 +41,7 @@ fun TacticalVideoPlayer(
     shootingSolution: ShootingSolution?,  // ← NEW: Receive shooting solution
     selectedTargetId: String?,            // ← NEW: Know which target is selected
     onTargetClick: (DetectedTarget) -> Unit = {},
-    onTargetLockToggle: (String) -> Unit = {},  // ← NEW: Lock/unlock callback
+    onTargetLockToggle: (String, Boolean) -> Unit = { _, _ -> },  // ← NEW: Lock/unlock callback (targetId, isLocking)
     onTargetSelect: (String) -> Unit = {},      // ← NEW: Select for solution callback
     modifier: Modifier = Modifier
 ) {
@@ -51,8 +51,8 @@ fun TacticalVideoPlayer(
     var scanlinePosition by remember { mutableStateOf(0f) }
     var videoTime by remember { mutableStateOf(0L) }
 
-    // Track locked targets
-    var lockedTargets by remember { mutableStateOf(setOf<String>()) }
+    // Track locked target (only one at a time)
+    var lockedTargetId by remember { mutableStateOf<String?>(null) }
 
     // Animate scanning line
     LaunchedEffect(Unit) {
@@ -107,7 +107,7 @@ fun TacticalVideoPlayer(
 
             // Target markers
             SimulatedTargets(videoTime).forEach { target ->
-                val isLocked = lockedTargets.contains(target.id)
+                val isLocked = lockedTargetId == target.id
                 val isSelected = target.id == selectedTargetId
 
                 EnhancedTargetMarker(
@@ -116,20 +116,30 @@ fun TacticalVideoPlayer(
                     isSelected = isSelected,
                     onLockClick = {
                         if (isLocked) {
-                            lockedTargets = lockedTargets - target.id
-                            // Deselect if unlocking selected target
-                            if (isSelected) {
-                                onTargetSelect("")
-                            }
+                            // Unlock current target
+                            lockedTargetId = null
+                            onTargetSelect("")  // Clear selection
+                            onTargetLockToggle(target.id, false)  // Send unlock command
                         } else {
-                            lockedTargets = lockedTargets + target.id
+                            // Unlock previous target if any
+                            lockedTargetId?.let { prevTargetId ->
+                                onTargetLockToggle(prevTargetId, false)  // Send unlock command for previous
+                            }
+                            // Lock this target
+                            lockedTargetId = target.id
+                            // Immediately select and show shooting solution
+                            onTargetSelect(target.id)
+                            onTargetLockToggle(target.id, true)  // Send lock command
                         }
-                        onTargetLockToggle(target.id)
                     },
                     onTargetClick = {
-                        // Only allow selection of locked targets
+                        // Optional: Allow clicking locked target to select/deselect
                         if (isLocked) {
-                            onTargetSelect(target.id)
+                            if (isSelected) {
+                                onTargetSelect("")  // Deselect
+                            } else {
+                                onTargetSelect(target.id)  // Select
+                            }
                         }
                     }
                 )
@@ -151,18 +161,18 @@ fun TacticalVideoPlayer(
                     )
                     .padding(horizontal = 12.dp, vertical = 6.dp)
             ) {
-                val hasLockedTargets = lockedTargets.isNotEmpty()
+                val hasLockedTarget = lockedTargetId != null
                 val hasSelectedTarget = selectedTargetId != null
 
                 Text(
                     text = when {
                         hasSelectedTarget -> "SOLUTION ACTIVE"
-                        hasLockedTargets -> " ${lockedTargets.size}LOCKED"
+                        hasLockedTarget -> "TARGET LOCKED"
                         else -> "SCANNING"
                     },
                     color = when {
                         hasSelectedTarget -> Color(0xFFFF6B35)
-                        hasLockedTargets -> Color(0xFFFFAA00)
+                        hasLockedTarget -> Color(0xFFFFAA00)
                         else -> Color(0xFF00FF41)
                     },
                     fontSize = 12.sp,

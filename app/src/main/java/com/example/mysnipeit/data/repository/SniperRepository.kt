@@ -46,6 +46,14 @@ class SniperRepository {
         }
     }
 
+    /**
+     * Send lock/unlock command via WebSocket
+     */
+    fun sendLockCommand(targetId: String, isLocking: Boolean) {
+        val action = if (isLocking) "lock" else "unlock"
+        raspberryPiClient.sendLockCommand(targetId, action)
+    }
+
     fun requestCalibration() {
         scope.launch {
             currentIpAddress?.let { ip ->

@@ -146,12 +146,42 @@ class RaspberryPiClient {
                     _sensorData.value = data
                 }
                 "target_detection" -> {
-                    val targets = gson.fromJson(message, Array<DetectedTarget>::class.java).toList()
-                    _detectedTargets.value = targets
+                    // Parse RPi5 format with targets array
+                    val detectionData = gson.fromJson(message, Map::class.java)
+                    val targetsArray = detectionData["targets"] as? List<Map<String, Any>>
+
+                    if (targetsArray != null) {
+                        val targets = targetsArray.map { targetMap ->
+                            DetectedTarget(
+                                id = targetMap["id"] as? String ?: "UNKNOWN",
+                                confidence = (targetMap["confidence"] as? Double)?.toFloat() ?: 0f,
+                                screenX = (targetMap["screenX"] as? Double)?.toFloat() ?: 0f,
+                                screenY = (targetMap["screenY"] as? Double)?.toFloat() ?: 0f,
+                                worldLatitude = targetMap["worldLatitude"] as? Double ?: 0.0,
+                                worldLongitude = targetMap["worldLongitude"] as? Double ?: 0.0,
+                                distance = targetMap["distance"] as? Double ?: 0.0,
+                                bearing = targetMap["bearing"] as? Double ?: 0.0,
+                                targetType = parseTargetType(targetMap["targetType"] as? String),
+                                timestamp = (targetMap["timestamp"] as? Double)?.toLong() ?: System.currentTimeMillis()
+                            )
+                        }
+                        _detectedTargets.value = targets
+                        Log.d(TAG, "Parsed ${targets.size} targets from RPi5")
+                    }
                 }
                 "shooting_solution" -> {
-                    val solution = gson.fromJson(message, ShootingSolution::class.java)
+                    val solutionMap = gson.fromJson(message, Map::class.java)
+                    val solution = ShootingSolution(
+                        targetId = solutionMap["targetId"] as? String ?: "",
+                        azimuth = solutionMap["azimuth"] as? Double ?: 0.0,
+                        elevation = solutionMap["elevation"] as? Double ?: 0.0,
+                        windageAdjustment = solutionMap["windageAdjustment"] as? Double ?: 0.0,
+                        elevationAdjustment = solutionMap["elevationAdjustment"] as? Double ?: 0.0,
+                        confidence = (solutionMap["confidence"] as? Double)?.toFloat() ?: 0f,
+                        timestamp = (solutionMap["timestamp"] as? Double)?.toLong() ?: System.currentTimeMillis()
+                    )
                     _shootingSolution.value = solution
+                    Log.d(TAG, "Received shooting solution for ${solution.targetId}")
                 }
                 "system_status" -> {
                     val status = gson.fromJson(message, SystemStatus::class.java)
@@ -159,7 +189,16 @@ class RaspberryPiClient {
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to parse message: ${e.message}")
+            Log.e(TAG, "Failed to parse message: ${e.message}", e)
+        }
+    }
+
+    private fun parseTargetType(typeStr: String?): TargetType {
+        return when (typeStr?.uppercase()) {
+            "HUMAN" -> TargetType.HUMAN
+            "VEHICLE" -> TargetType.VEHICLE
+            "STRUCTURE" -> TargetType.STRUCTURE
+            else -> TargetType.UNKNOWN
         }
     }
 
@@ -225,7 +264,29 @@ class RaspberryPiClient {
     }
 
     fun getVideoStreamUrl(ipAddress: String): String {
-        return "rtsp://$ipAddress:$VIDEO_STREAM_PORT/video"
+        return "rtsp://$ipAddress:$VIDEO_STREAM_PORT/stream"
+    }
+
+    /**
+     * Send lock/unlock command via WebSocket
+     */
+    fun sendLockCommand(targetId: String, action: String) {
+        try {
+            val command = mapOf(
+                "type" to "command",
+                "command" to "select_target",
+                "params" to mapOf(
+                    "targetId" to targetId,
+                    "action" to action
+                ),
+                "timestamp" to System.currentTimeMillis()
+            )
+            val jsonCommand = gson.toJson(command)
+            webSocketClient?.send(jsonCommand)
+            Log.d(TAG, "Sent $action command for target $targetId")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to send lock command: ${e.message}")
+        }
     }
 
     /**

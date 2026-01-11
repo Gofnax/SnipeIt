@@ -32,6 +32,7 @@ fun DashboardScreen(
     onConnectClick: () -> Unit,
     onDisconnectClick: () -> Unit,
     onTargetSelect: (String) -> Unit = {},  // ← NEW: Selection callback
+    onTargetLockToggle: (String, Boolean) -> Unit = { _, _ -> },  // ← NEW: Lock/unlock callback
     onBackClick: () -> Unit = {},
     onMenuClick: () -> Unit = {}
 ) {
@@ -63,6 +64,7 @@ fun DashboardScreen(
                 shootingSolution = shootingSolution,
                 selectedTargetId = selectedTargetId,
                 onTargetSelect = onTargetSelect,
+                onTargetLockToggle = onTargetLockToggle,
                 modifier = Modifier.fillMaxSize()
             )
         }
@@ -314,6 +316,7 @@ private fun VideoFeedSection(
     shootingSolution: ShootingSolution?,
     selectedTargetId: String?,
     onTargetSelect: (String) -> Unit,
+    onTargetLockToggle: (String, Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     TacticalVideoPlayer(
@@ -324,6 +327,7 @@ private fun VideoFeedSection(
             Log.d("Dashboard", "Target clicked: ${target.id}")
         },
         onTargetSelect = onTargetSelect,  // ← NEW: Pass callback
+        onTargetLockToggle = onTargetLockToggle,  // ← NEW: Pass lock/unlock callback
         modifier = modifier
     )
 }
