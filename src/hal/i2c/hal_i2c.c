@@ -137,7 +137,10 @@ eHALReturnValue hal_i2c_write_reg(uint32_t device_index, uint16_t reg, size_t re
     }
 
     uint8_t reg_buffer_combined[I2C_MAX_MESSAGE_SIZE_BYTES];
-    reg_buffer_combined[0] = (uint8_t)reg;
+    for(size_t i = 0; i < reg_len; ++i)
+    {
+        reg_buffer_combined[i] = (uint8_t)(reg >> (sizeof(uint8_t) * reg_len - 1 - i));
+    }
     memcpy(&reg_buffer_combined[reg_len], buffer, num_bytes);
 
     struct i2c_msg message = {
