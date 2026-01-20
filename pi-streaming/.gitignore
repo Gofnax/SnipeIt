@@ -1,0 +1,15 @@
+cat > ~/SnipeIt/pi-streaming/.gitignore << 'EOF'
+# mediaMTX binary (large, can be re-downloaded)
+mediamtx
+mediamtx_*.tar.gz
+
+# Logs
+*.log
+
+# Test videos
+*.mp4
+
+# Runtime files
+*.pid
+*.sock
+EOF
