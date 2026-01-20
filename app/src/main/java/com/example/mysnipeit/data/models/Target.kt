@@ -1,17 +1,20 @@
 package com.example.mysnipeit.data.models
 
+import com.google.gson.annotations.SerializedName
+
+data class BoundingBox(
+    val x: Int,
+    val y: Int,
+    val width: Int,
+    val height: Int
+)
 
 data class DetectedTarget(
     val id: String,
+    @SerializedName("class")
+    val targetType: String,  // "HUMAN", "VEHICLE", etc.
     val confidence: Float,
-    val screenX: Float,
-    val screenY: Float,
-    val worldLatitude: Double,
-    val worldLongitude: Double,
-    val distance: Double,
-    val bearing: Double,
-    val targetType: TargetType,
-    val timestamp: Long
+    val bbox: BoundingBox
 )
 
 enum class TargetType {

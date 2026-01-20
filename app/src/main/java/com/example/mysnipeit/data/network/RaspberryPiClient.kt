@@ -146,24 +146,31 @@ class RaspberryPiClient {
                     _sensorData.value = data
                 }
                 "target_detection" -> {
-                    // Parse RPi5 format with targets array
+                    // Parse RPi5 format with detections array
                     val detectionData = gson.fromJson(message, Map::class.java)
-                    val targetsArray = detectionData["targets"] as? List<Map<String, Any>>
+                    val detectionsArray = detectionData["detections"] as? List<Map<String, Any>>
 
-                    if (targetsArray != null) {
-                        val targets = targetsArray.map { targetMap ->
-                            DetectedTarget(
-                                id = targetMap["id"] as? String ?: "UNKNOWN",
-                                confidence = (targetMap["confidence"] as? Double)?.toFloat() ?: 0f,
-                                screenX = (targetMap["screenX"] as? Double)?.toFloat() ?: 0f,
-                                screenY = (targetMap["screenY"] as? Double)?.toFloat() ?: 0f,
-                                worldLatitude = targetMap["worldLatitude"] as? Double ?: 0.0,
-                                worldLongitude = targetMap["worldLongitude"] as? Double ?: 0.0,
-                                distance = targetMap["distance"] as? Double ?: 0.0,
-                                bearing = targetMap["bearing"] as? Double ?: 0.0,
-                                targetType = parseTargetType(targetMap["targetType"] as? String),
-                                timestamp = (targetMap["timestamp"] as? Double)?.toLong() ?: System.currentTimeMillis()
-                            )
+                    if (detectionsArray != null) {
+                        val targets = detectionsArray.mapNotNull { detection ->
+                            try {
+                                val bboxMap = detection["bbox"] as? Map<String, Any>
+                                if (bboxMap != null) {
+                                    DetectedTarget(
+                                        id = detection["id"] as? String ?: "UNKNOWN",
+                                        targetType = detection["class"] as? String ?: "UNKNOWN",
+                                        confidence = (detection["confidence"] as? Double)?.toFloat() ?: 0f,
+                                        bbox = BoundingBox(
+                                            x = (bboxMap["x"] as? Double)?.toInt() ?: 0,
+                                            y = (bboxMap["y"] as? Double)?.toInt() ?: 0,
+                                            width = (bboxMap["width"] as? Double)?.toInt() ?: 0,
+                                            height = (bboxMap["height"] as? Double)?.toInt() ?: 0
+                                        )
+                                    )
+                                } else null
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error parsing detection: ${e.message}")
+                                null
+                            }
                         }
                         _detectedTargets.value = targets
                         Log.d(TAG, "Parsed ${targets.size} targets from RPi5")
@@ -190,15 +197,6 @@ class RaspberryPiClient {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse message: ${e.message}", e)
-        }
-    }
-
-    private fun parseTargetType(typeStr: String?): TargetType {
-        return when (typeStr?.uppercase()) {
-            "HUMAN" -> TargetType.HUMAN
-            "VEHICLE" -> TargetType.VEHICLE
-            "STRUCTURE" -> TargetType.STRUCTURE
-            else -> TargetType.UNKNOWN
         }
     }
 
@@ -310,31 +308,29 @@ class RaspberryPiClient {
                     timestamp = System.currentTimeMillis()
                 )
 
-                //  2. GENERATE MOCK TARGETS (THIS WAS MISSING!)
+                //  2. GENERATE MOCK TARGETS with bbox in pixels
                 val mockTargets = listOf(
                     DetectedTarget(
                         id = "T1",
+                        targetType = "HUMAN",
                         confidence = 0.85f,
-                        screenX = 0.3f,
-                        screenY = 0.4f,
-                        worldLatitude = 35.093,
-                        worldLongitude = 32.014,
-                        distance = 420.0,
-                        bearing = 245.0,
-                        targetType = TargetType.HUMAN,
-                        timestamp = System.currentTimeMillis()
+                        bbox = BoundingBox(
+                            x = 576,      // ~30% of 1920
+                            y = 432,      // ~40% of 1080
+                            width = 150,
+                            height = 250
+                        )
                     ),
                     DetectedTarget(
                         id = "T2",
+                        targetType = "VEHICLE",
                         confidence = 0.72f,
-                        screenX = 0.7f,
-                        screenY = 0.5f,
-                        worldLatitude = 35.094,
-                        worldLongitude = 32.015,
-                        distance = 580.0,
-                        bearing = 260.0,
-                        targetType = TargetType.UNKNOWN,
-                        timestamp = System.currentTimeMillis()
+                        bbox = BoundingBox(
+                            x = 1344,     // ~70% of 1920
+                            y = 540,      // ~50% of 1080
+                            width = 200,
+                            height = 180
+                        )
                     )
                 )
 
@@ -397,89 +393,47 @@ class RaspberryPiClient {
 }
 
 /**
-
- * Expected JSON format from RPi:
-
+ * Expected JSON format from RPi5:
  *
-
  * Sensor Data:
-
  * {
-
  *   "type": "sensor_data",
-
  *   "temperature": 25.5,
-
  *   "humidity": 65.0,
-
  *   "windSpeed": 8.2,
-
  *   "windDirection": 245,
-
  *   "rangefinderDistance": 420.5,
-
  *   "timestamp": 1234567890
-
  * }
-
  *
-
  * Target Detection:
-
  * {
-
  *   "type": "target_detection",
-
- *   "targets": [
-
+ *   "timestamp_ms": 5000,
+ *   "detections": [
  *     {
-
- *       "id": "T1",
-
+ *       "id": "1",
+ *       "class": "HUMAN",
  *       "confidence": 0.85,
-
- *       "screenX": 0.5,
-
- *       "screenY": 0.4,
-
- *       "worldLatitude": 35.094,
-
- *       "worldLongitude": 32.015,
-
- *       "distance": 420.0,
-
- *       "bearing": 245.0,
-
- *       "targetType": "HUMAN",
-
- *       "timestamp": 1234567890
-
+ *       "bbox": {
+ *         "x": 100,
+ *         "y": 50,
+ *         "width": 200,
+ *         "height": 400
+ *       }
  *     }
-
  *   ]
-
  * }
-
  *
-
  * Shooting Solution:
-
  * {
-
  *   "type": "shooting_solution",
-
+ *   "targetId": "1",
  *   "azimuth": 245.5,
-
  *   "elevation": 12.3,
-
  *   "windageAdjustment": 2.1,
-
  *   "elevationAdjustment": 1.5,
-
  *   "confidence": 0.85,
-
  *   "timestamp": 1234567890
-
  * }
-
  */
