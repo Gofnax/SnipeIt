@@ -1,4 +1,3 @@
-cat > ~/SnipeIt/pi-streaming/.gitignore << 'EOF'
 # mediaMTX binary (large, can be re-downloaded)
 mediamtx
 mediamtx_*.tar.gz
@@ -12,4 +11,3 @@ mediamtx_*.tar.gz
 # Runtime files
 *.pid
 *.sock
-EOF
