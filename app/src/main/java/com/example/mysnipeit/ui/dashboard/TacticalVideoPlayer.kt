@@ -30,10 +30,13 @@ import androidx.media3.ui.PlayerView
 import com.example.mysnipeit.R
 import com.example.mysnipeit.data.models.DetectedTarget
 import com.example.mysnipeit.data.models.ShootingSolution
-import com.example.mysnipeit.data.models.TargetType
 import com.example.mysnipeit.ui.components.TacticalCompass
 import com.example.mysnipeit.ui.theme.*
 import kotlinx.coroutines.delay
+
+// Video resolution constants (hardcoded for POC)
+private const val VIDEO_WIDTH = 1920f
+private const val VIDEO_HEIGHT = 1080f
 
 @Composable
 fun TacticalVideoPlayer(
@@ -217,15 +220,14 @@ private fun SimulatedTargets(videoTime: Long): List<DetectedTarget> {
         targets.add(
             DetectedTarget(
                 id = "T1",
+                targetType = "HUMAN",
                 confidence = 0.85f,
-                screenX = 0.3f,
-                screenY = 0.4f,
-                worldLatitude = 35.093,
-                worldLongitude = 32.014,
-                distance = 420.0,
-                bearing = 245.0,
-                targetType = TargetType.HUMAN,
-                timestamp = System.currentTimeMillis()
+                bbox = com.example.mysnipeit.data.models.BoundingBox(
+                    x = 576,      // ~30% of 1920
+                    y = 432,      // ~40% of 1080
+                    width = 150,
+                    height = 250
+                )
             )
         )
     }
@@ -234,15 +236,14 @@ private fun SimulatedTargets(videoTime: Long): List<DetectedTarget> {
         targets.add(
             DetectedTarget(
                 id = "T2",
+                targetType = "VEHICLE",
                 confidence = 0.72f,
-                screenX = 0.7f,
-                screenY = 0.5f,
-                worldLatitude = 35.094,
-                worldLongitude = 32.015,
-                distance = 580.0,
-                bearing = 260.0,
-                targetType = TargetType.UNKNOWN,
-                timestamp = System.currentTimeMillis()
+                bbox = com.example.mysnipeit.data.models.BoundingBox(
+                    x = 1344,     // ~70% of 1920
+                    y = 540,      // ~50% of 1080
+                    width = 200,
+                    height = 180
+                )
             )
         )
     }
@@ -251,15 +252,14 @@ private fun SimulatedTargets(videoTime: Long): List<DetectedTarget> {
         targets.add(
             DetectedTarget(
                 id = "T3",
+                targetType = "HUMAN",
                 confidence = 0.91f,
-                screenX = 0.5f,
-                screenY = 0.45f,
-                worldLatitude = 35.095,
-                worldLongitude = 32.013,
-                distance = 350.0,
-                bearing = 250.0,
-                targetType = TargetType.HUMAN,
-                timestamp = System.currentTimeMillis()
+                bbox = com.example.mysnipeit.data.models.BoundingBox(
+                    x = 960,      // ~50% of 1920 (center)
+                    y = 486,      // ~45% of 1080
+                    width = 120,
+                    height = 220
+                )
             )
         )
     }
@@ -278,7 +278,7 @@ private fun EnhancedTargetMarker(
     val markerColor = when {
         isSelected -> Color(0xFFFF6B35)     // Orange for selected
         isLocked -> Color(0xFFFFAA00)       // Amber for locked
-        target.targetType == TargetType.HUMAN -> Color(0xFF00FF41)  // Green
+        target.targetType == "HUMAN" -> Color(0xFF00FF41)  // Green
         else -> Color(0xFF00D9FF)           // Cyan
     }
 
@@ -298,8 +298,12 @@ private fun EnhancedTargetMarker(
     }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val xPos = maxWidth * target.screenX
-        val yPos = maxHeight * target.screenY
+        // Convert bbox pixels to screen position
+        // bbox coordinates are in pixels relative to video resolution (1920x1080)
+        val xPos = maxWidth * (target.bbox.x.toFloat() / VIDEO_WIDTH)
+        val yPos = maxHeight * (target.bbox.y.toFloat() / VIDEO_HEIGHT)
+        val boxWidth = maxWidth * (target.bbox.width.toFloat() / VIDEO_WIDTH)
+        val boxHeight = maxHeight * (target.bbox.height.toFloat() / VIDEO_HEIGHT)
 
         Box(
             modifier = Modifier
@@ -439,7 +443,7 @@ private fun EnhancedTargetMarker(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "${target.id} | ${target.targetType.name}",
+                        text = "${target.id} | ${target.targetType}",
                         color = markerColor,
                         fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace,
@@ -447,7 +451,7 @@ private fun EnhancedTargetMarker(
                     )
 
                     Text(
-                        text = "${target.distance.toInt()}m",
+                        text = "Size: ${target.bbox.width}x${target.bbox.height}",
                         color = MilitaryTextPrimary,
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace
