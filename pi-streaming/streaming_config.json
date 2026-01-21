@@ -1,0 +1,10 @@
+{
+    "video_path": "/home/snipeit/SnipeIt/videos/duck_slide.mp4",
+    "mediamtx_path": "./mediamtx",
+    "mediamtx_config": "./mediamtx.yml",
+    "websocket_port": 8555,
+    "rtsp_port": 8554,
+    "rtsp_stream_name": "stream",
+    "loop_video": false,
+    "detection_frame_interval": 5
+}

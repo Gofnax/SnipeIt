@@ -81,7 +81,14 @@ int main(int argc, char *argv[])
     
     // Send START command
     printf("\n[TEST] Sending START command...\n");
-    if (ipc_send_start(&conn, video_path) != 0)
+
+    // Test values for video metadata
+    double test_duration = 30.0;  // 30 seconds
+    double test_fps = 30.0;
+    int test_loop = 0;            // false
+    int test_frame_interval = 5;
+    if (ipc_send_start(&conn, video_path, test_duration, test_fps, 
+                       test_loop, test_frame_interval) != 0)
     {
         fprintf(stderr, "[TEST] Failed to send START\n");
         ipc_cleanup(&conn);

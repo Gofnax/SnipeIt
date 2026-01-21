@@ -1,7 +1,10 @@
 # mediaMTX binary (large, can be re-downloaded)
 mediamtx
 mediamtx_*.tar.gz
+
+# Compiled binaries
 test_ipc
+streaming_server
 
 # Logs
 *.log
@@ -12,3 +15,7 @@ test_ipc
 # Runtime files
 *.pid
 *.sock
+
+# Python cache
+__pycache__/
+*.pyc

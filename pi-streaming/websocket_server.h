@@ -1,0 +1,114 @@
+/*
+    WebSocket Server using libwebsockets
+
+    This module implements a WebSocket server for the Android app:
+    - Listens for WebSocket connections on a configurable port
+    - Notifies when clients connect/disconnect
+    - Sends JSON detection data to connected clients
+ */
+
+#ifndef WEBSOCKET_SERVER_H
+#define WEBSOCKET_SERVER_H
+
+/* Standard Libraries */
+#include <stdbool.h>
+#include <stddef.h>
+
+// Forward declaration (libwebsockets types)
+struct lws_context;
+
+// Maximum message size for WebSocket
+#define WS_MAX_MSG_SIZE 4096
+
+// Callback function types
+typedef void (*ws_connect_callback)(void *user_data);
+typedef void (*ws_disconnect_callback)(void *user_data);
+
+typedef struct
+{
+    struct lws_context *context;            // libwebsockets context
+    struct lws *client_wsi;                 // Connected client (NULL if none)
+    int port;                               // Listening port
+    bool running;                           // Whether server is running
+    bool client_connected;                  // Whether a client is connected
+    
+    // Callbacks
+    ws_connect_callback on_connect;         // Called when client connects
+    ws_disconnect_callback on_disconnect;   // Called when client disconnects
+    void *callback_user_data;               // User data passed to callbacks
+    
+    // Send buffer (messages queued for sending)
+    char send_buffer[WS_MAX_MSG_SIZE];
+    size_t send_len;
+    bool send_pending;
+} WebSocketServer;
+
+/**
+ * @brief   Initialize the WebSocket server.
+ * @param   ws A pointer to WebSocketServer structure.
+ * @param   port Port number to listen on.
+ * @returns 0 on success, -1 on error.
+ */
+int ws_init(WebSocketServer *ws, int port);
+
+/**
+ * @brief   Set connection callbacks.
+ * @param   ws A pointer to WebSocketServer structure.
+ * @param   on_connect Callback when client connects (can be NULL).
+ * @param   on_disconnect Callback when client disconnects (can be NULL).
+ * @param   user_data User data passed to callbacks.
+ */
+void ws_set_callbacks(WebSocketServer *ws,
+                      ws_connect_callback on_connect,
+                      ws_disconnect_callback on_disconnect,
+                      void *user_data);
+
+/**
+ * @brief   Service the WebSocket server (non-blocking).
+ * @details Must be called regularly to handle events.
+ * @param   ws A pointer to WebSocketServer structure.
+ * @param   timeout_ms Timeout in milliseconds (0 for non-blocking).
+ * @returns 0 on success, -1 on error.
+ */
+int ws_service(WebSocketServer *ws, int timeout_ms);
+
+/**
+ * @brief   Check if a client is connected.
+ * @param   ws A pointer to WebSocketServer structure.
+ * @returns true if a client is connected, false otherwise.
+ */
+bool ws_is_client_connected(WebSocketServer *ws);
+
+/**
+ * @brief   Send a text message to the connected client.
+ * @param   ws A pointer to WebSocketServer structure.
+ * @param   message The message to send (null-terminated string).
+ * @returns 0 on success, -1 on error (no client connected).
+ */
+int ws_send(WebSocketServer *ws, const char *message);
+
+/**
+ * @brief   Send a JSON message to the connected client.
+ * @details Convenience wrapper that handles serialization.
+ * @param   ws A pointer to WebSocketServer structure.
+ * @param   json The JSON string to send.
+ * @param   len Length of the JSON string.
+ * @returns 0 on success, -1 on error.
+ */
+int ws_send_json(WebSocketServer *ws, const char *json, size_t len);
+
+/**
+ * @brief   Get the libwebsockets context file descriptor for poll().
+ * @details This can be used to integrate with poll()-based event loops.
+ * @param   ws A pointer to WebSocketServer structure.
+ * @returns File descriptor, or -1 if not available.
+ */
+int ws_get_poll_fd(WebSocketServer *ws);
+
+/**
+ * @brief   Cleanup and shutdown the WebSocket server.
+ * @param   ws A pointer to WebSocketServer structure.
+ */
+void ws_cleanup(WebSocketServer *ws);
+
+#endif

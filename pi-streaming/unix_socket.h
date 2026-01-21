@@ -60,12 +60,17 @@ int ipc_check_client_connected(IPCConnection *conn);
 
 /**
  * @brief   Send START command to Python process.
- * @details Sends: {"cmd": "start", "video_path": "<path>"}\n
- * @param   conn A poiner to an IPCConnection structure.
- * @param   video_path The path to the video file to process,
+ * @details Sends JSON with video path and metadata for processing.
+ * @param   conn A pointer to an IPCConnection structure.
+ * @param   video_path The path to the video file to process.
+ * @param   duration_sec Video duration in seconds.
+ * @param   fps Video frames per second.
+ * @param   loop Whether to loop the video.
+ * @param   frame_interval Process every Nth frame.
  * @returns 0 on success, -1 on error.
  */
-int ipc_send_start(IPCConnection *conn, const char *video_path);
+int ipc_send_start(IPCConnection *conn, const char *video_path, double duration_sec,
+                    double fps, int loop, int frame_interval);
 
 /**
  * @brief   Send STOP command to Python process.

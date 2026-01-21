@@ -1,7 +1,6 @@
 #!/bin/bash
 ###############################################
 # mediaMTX Installation Test Script
-# Run this on your Raspberry Pi
 ###############################################
 
 set -e  # Exit on error

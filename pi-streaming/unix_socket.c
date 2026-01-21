@@ -1,5 +1,6 @@
 #include "unix_socket.h"
 
+/* Standard Libraries */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -154,7 +155,8 @@ int ipc_check_client_connected(IPCConnection *conn)
     return (conn->client_fd != -1) ? 1 : 0;
 }
 
-int ipc_send_start(IPCConnection *conn, const char *video_path)
+int ipc_send_start(IPCConnection *conn, const char *video_path, double duration_sec,
+                    double fps, int loop, int frame_interval)
 {
     char msg[MAX_MSG_SIZE];
     int len;
@@ -166,11 +168,14 @@ int ipc_send_start(IPCConnection *conn, const char *video_path)
     }
     
     // Format JSON message with newline delimiter
-    len = snprintf(msg, sizeof(msg), "{\"cmd\":\"start\",\"video_path\":\"%s\"}\n", video_path);
+    len = snprintf(msg, sizeof(msg),
+        "{\"cmd\":\"start\",\"video_path\":\"%s\",\"duration_sec\":%.3f,"
+        "\"fps\":%.2f,\"loop\":%s,\"frame_interval\":%d}\n",
+        video_path, duration_sec, fps, loop ? "true" : "false", frame_interval);
     
     if (len >= (int)sizeof(msg))
     {
-        fprintf(stderr, "[IPC] Video path too long\n");
+        fprintf(stderr, "[IPC] Message too long\n");
         return -1;
     }
     
