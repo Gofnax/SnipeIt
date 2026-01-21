@@ -21,7 +21,7 @@ class RaspberryPiClient {
 
     companion object {
         private const val TAG = "RaspberryPiClient"
-        private const val WEBSOCKET_PORT = 8080
+        private const val WEBSOCKET_PORT = 8555
         private const val HTTP_PORT = 8000
         private const val VIDEO_STREAM_PORT = 8554
     }
@@ -73,12 +73,12 @@ class RaspberryPiClient {
             val canPing = networkTester.pingDevice(ipAddress)
 
             if (!canPing) {
-                Log.e(TAG, "❌ Cannot ping device at $ipAddress")
+                Log.e(TAG, "Cannot ping device at $ipAddress")
                 startMockDataGeneration()
                 return@withContext
             }
 
-            Log.d(TAG, "✅ Device is reachable")
+            Log.d(TAG, "Device is reachable")
 
             val portStatus = networkTester.scanPorts(
                 ipAddress,
@@ -90,7 +90,7 @@ class RaspberryPiClient {
             if (portStatus[WEBSOCKET_PORT] == true) {
                 connectWebSocket(ipAddress)
             } else {
-                Log.w(TAG, "⚠️ WebSocket port not open, using mock data")
+                Log.w(TAG, "WebSocket port not open, using mock data")
                 startMockDataGeneration()
             }
 
@@ -112,7 +112,7 @@ class RaspberryPiClient {
 
         webSocketClient = object : WebSocketClient(wsUri) {
             override fun onOpen(handshakedata: ServerHandshake?) {
-                Log.d(TAG, "✅ WebSocket connected")
+                Log.d(TAG, "WebSocket connected")
                 updateSystemStatus(ConnectionState.CONNECTED)
             }
 

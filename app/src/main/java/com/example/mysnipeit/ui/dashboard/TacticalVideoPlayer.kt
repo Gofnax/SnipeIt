@@ -41,11 +41,11 @@ private const val VIDEO_HEIGHT = 1080f
 @Composable
 fun TacticalVideoPlayer(
     detectedTargets: List<DetectedTarget>,
-    shootingSolution: ShootingSolution?,  // ← NEW: Receive shooting solution
-    selectedTargetId: String?,            // ← NEW: Know which target is selected
+    shootingSolution: ShootingSolution?,
+    selectedTargetId: String?,
     onTargetClick: (DetectedTarget) -> Unit = {},
-    onTargetLockToggle: (String, Boolean) -> Unit = { _, _ -> },  // ← NEW: Lock/unlock callback (targetId, isLocking)
-    onTargetSelect: (String) -> Unit = {},      // ← NEW: Select for solution callback
+    onTargetLockToggle: (String, Boolean) -> Unit = { _, _ -> },
+    onTargetSelect: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -176,7 +176,7 @@ fun TacticalVideoPlayer(
                     color = when {
                         hasSelectedTarget -> Color(0xFFFF6B35)
                         hasLockedTarget -> Color(0xFFFFAA00)
-                        else -> Color(0xFF00FF41)
+                        else -> Color(0xFF038C16)
                     },
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
@@ -236,7 +236,7 @@ private fun SimulatedTargets(videoTime: Long): List<DetectedTarget> {
         targets.add(
             DetectedTarget(
                 id = "T2",
-                targetType = "VEHICLE",
+                targetType = "UNKNOWN",
                 confidence = 0.72f,
                 bbox = com.example.mysnipeit.data.models.BoundingBox(
                     x = 1344,     // ~70% of 1920
@@ -271,14 +271,14 @@ private fun SimulatedTargets(videoTime: Long): List<DetectedTarget> {
 private fun EnhancedTargetMarker(
     target: DetectedTarget,
     isLocked: Boolean,
-    isSelected: Boolean,  // ← NEW
+    isSelected: Boolean,
     onLockClick: () -> Unit,
-    onTargetClick: () -> Unit  // ← NEW
+    onTargetClick: () -> Unit
 ) {
     val markerColor = when {
         isSelected -> Color(0xFFFF6B35)     // Orange for selected
         isLocked -> Color(0xFFFFAA00)       // Amber for locked
-        target.targetType == "HUMAN" -> Color(0xFF00FF41)  // Green
+        target.targetType == "HUMAN" -> Color(0xFF038C16)  // Green
         else -> Color(0xFF00D9FF)           // Cyan
     }
 
@@ -459,7 +459,7 @@ private fun EnhancedTargetMarker(
 
                     Text(
                         text = "CONF: ${(target.confidence * 100).toInt()}%",
-                        color = if (target.confidence > 0.8f) Color(0xFF00FF41) else Color(0xFFFFAA00),
+                        color = if (target.confidence > 0.8f) Color(0xFF038C16) else Color(0xFFFFAA00),
                         fontSize = 9.sp,
                         fontFamily = FontFamily.Monospace
                     )
@@ -476,7 +476,7 @@ private fun EnhancedTargetMarker(
                             containerColor = if (isLocked) {
                                 Color(0xFFFFAA00)
                             } else {
-                                Color(0xFF00FF41)
+                                Color(0xFF038C16)
                             }
                         ),
                         shape = RoundedCornerShape(4.dp),
@@ -495,8 +495,8 @@ private fun EnhancedTargetMarker(
                     if (isLocked) {
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = if (isSelected) "★ SELECTED" else "TAP TO SELECT",
-                            color = if (isSelected) Color(0xFFFF6B35) else Color(0xFF00FF41).copy(alpha = 0.6f),
+                            text = if (isSelected) "SELECTED" else "TAP TO SELECT",
+                            color = if (isSelected) Color(0xFFFF6B35) else Color(0xFF038C16).copy(alpha = 0.6f),
                             fontSize = 8.sp,
                             fontFamily = FontFamily.Monospace,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal

@@ -62,9 +62,13 @@ fun MockVideoFeed(
                 movingTargets.add(
                     MovingTarget(
                         id = target.id,
-                        x = target.screenX,
-                        y = target.screenY,
-                        type = target.targetType,
+                        x = target.bbox.x.toFloat() / 1920f, // Normalize to 0-1 range (assuming 1920px width)
+                        y = target.bbox.y.toFloat() / 1080f, // Normalize to 0-1 range (assuming 1080px height)
+                        type = try {
+                            TargetType.valueOf(target.targetType)
+                        } catch (e: IllegalArgumentException) {
+                            TargetType.UNKNOWN
+                        },
                         confidence = target.confidence
                     )
                 )
@@ -94,8 +98,8 @@ fun MockVideoFeed(
                 // Choose bright color based on type and lock status
                 val color = when {
                     isLocked -> Color(0xFFFF6B35) // Bright Orange for locked
-                    target.type == TargetType.HUMAN -> Color(0xFF00FF41) // Bright Green
-                    else -> Color(0xFF00D9FF) // Bright Cyan for unknown
+                    target.type == TargetType.HUMAN -> Color(0xFF038C16) // Green
+                    else -> Color(0xFF086D80) // Bright Cyan for unknown
                 }
 
                 // Draw bounding box with brighter colors
@@ -205,8 +209,8 @@ fun MockVideoFeed(
                         text = "${target.id} | ${target.type.name}",
                         color = when {
                             isLocked -> Color(0xFFFF6B35)
-                            target.type == TargetType.HUMAN -> Color(0xFF00FF41)
-                            else -> Color(0xFF00D9FF)
+                            target.type == TargetType.HUMAN -> Color(0xFF038C16)
+                            else -> Color(0xFF086D80)
                         },
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
@@ -240,13 +244,13 @@ fun MockVideoFeed(
                             containerColor = if (isLocked) {
                                 Color(0xFFFF6B35) // Orange when locked
                             } else {
-                                Color(0xFF00FF41) // Green when unlocked
+                                Color(0xFF038C16) // Green when unlocked
                             }
                         ),
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = if (isLocked) "🔓 UNLOCK" else "🔒 LOCK",
+                            text = if (isLocked) "UNLOCK" else "LOCK",
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.Black,
@@ -275,7 +279,7 @@ fun MockVideoFeed(
                 } else {
                     "🔍 SCANNING"
                 },
-                color = if (hasLockedTargets) Color(0xFFFF6B35) else Color(0xFF00FF41),
+                color = if (hasLockedTargets) Color(0xFFFF6B35) else Color(0xFF038C16),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace
@@ -293,7 +297,7 @@ fun MockVideoFeed(
 
             // Horizontal line
             drawLine(
-                color = Color(0xFF00FF41).copy(alpha = 0.5f),
+                color = Color(0xFF038C16).copy(alpha = 0.5f),
                 start = Offset(0f, center.y),
                 end = Offset(size.width, center.y),
                 strokeWidth = 2f
@@ -301,7 +305,7 @@ fun MockVideoFeed(
 
             // Vertical line
             drawLine(
-                color = Color(0xFF00FF41).copy(alpha = 0.5f),
+                color = Color(0xFF038C16).copy(alpha = 0.5f),
                 start = Offset(center.x, 0f),
                 end = Offset(center.x, size.height),
                 strokeWidth = 2f
@@ -309,7 +313,7 @@ fun MockVideoFeed(
 
             // Center dot
             drawCircle(
-                color = Color(0xFF00FF41),
+                color = Color(0xFF038C16),
                 radius = 3f,
                 center = center
             )

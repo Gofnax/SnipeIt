@@ -73,14 +73,14 @@ fun TacticalCompass(
 
                     // Color based on confidence
                     val arrowColor = when {
-                        confidence > 0.8f -> Color(0xFF00FF41)  // Bright green
+                        confidence > 0.8f -> Color(0xFF038C16)  // green
                         confidence > 0.6f -> Color(0xFFFFAA00)  // Orange
                         else -> Color(0xFFFF4444)               // Red
                     }
 
                     // Draw compass ring
                     drawCircle(
-                        color = Color(0xFF00FF41).copy(alpha = 0.3f),
+                        color = Color(0xFF038C16).copy(alpha = 0.3f),
                         radius = radius,
                         center = center,
                         style = Stroke(width = 2f)
@@ -149,7 +149,7 @@ fun TacticalCompass(
                 // North
                 Text(
                     text = "N",
-                    color = Color(0xFF00FF41),
+                    color = Color(0xFF038C16),
                     fontSize = 16.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
@@ -161,7 +161,7 @@ fun TacticalCompass(
                 // East
                 Text(
                     text = "E",
-                    color = Color(0xFF00FF41),
+                    color = Color(0xFF038C16),
                     fontSize = 16.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
@@ -173,7 +173,7 @@ fun TacticalCompass(
                 // South
                 Text(
                     text = "S",
-                    color = Color(0xFF00FF41),
+                    color = Color(0xFF038C16),
                     fontSize = 16.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
@@ -185,7 +185,7 @@ fun TacticalCompass(
                 // West
                 Text(
                     text = "W",
-                    color = Color(0xFF00FF41),
+                    color = Color(0xFF038C16),
                     fontSize = 16.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
@@ -206,13 +206,13 @@ fun TacticalCompass(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text = "AZ",
-                        color = Color(0xFF00FF41).copy(alpha = 0.6f),
+                        color = Color(0xFF038C16).copy(alpha = 0.6f),
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace
                     )
                     Text(
                         text = "${azimuth.toInt()}°",
-                        color = Color(0xFF00FF41),
+                        color = Color(0xFF038C16),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Monospace
@@ -223,13 +223,13 @@ fun TacticalCompass(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text = "EL",
-                        color = Color(0xFF00FF41).copy(alpha = 0.6f),
+                        color = Color(0xFF038C16).copy(alpha = 0.6f),
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace
                     )
                     Text(
                         text = "${if (elevation > 0) "+" else ""}${elevation.toInt()}°",
-                        color = Color(0xFF00FF41),
+                        color = Color(0xFF038C16),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Monospace

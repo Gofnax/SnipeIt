@@ -28,11 +28,11 @@ fun DashboardScreen(
     detectedTargets: List<DetectedTarget>,
     shootingSolution: ShootingSolution?,
     systemStatus: SystemStatus,
-    selectedTargetId: String?,  // ← NEW: Receive selected target ID
+    selectedTargetId: String?,
     onConnectClick: () -> Unit,
     onDisconnectClick: () -> Unit,
-    onTargetSelect: (String) -> Unit = {},  // ← NEW: Selection callback
-    onTargetLockToggle: (String, Boolean) -> Unit = { _, _ -> },  // ← NEW: Lock/unlock callback
+    onTargetSelect: (String) -> Unit = {},
+    onTargetLockToggle: (String, Boolean) -> Unit = { _, _ -> },
     onBackClick: () -> Unit = {},
     onMenuClick: () -> Unit = {}
 ) {
@@ -46,7 +46,7 @@ fun DashboardScreen(
             sensorData = sensorData,
             shootingSolution = shootingSolution,
             systemStatus = systemStatus,
-            selectedTargetId = selectedTargetId,  // ← NEW
+            selectedTargetId = selectedTargetId,
             onBackClick = onBackClick,
             onMenuClick = onMenuClick,
             onConnectClick = onConnectClick,
@@ -76,7 +76,7 @@ private fun TopHudBar(
     sensorData: SensorData?,
     shootingSolution: ShootingSolution?,
     systemStatus: SystemStatus,
-    selectedTargetId: String?,  // ← NEW
+    selectedTargetId: String?,
     onBackClick: () -> Unit,
     onMenuClick: () -> Unit,
     onConnectClick: () -> Unit,
@@ -163,7 +163,7 @@ private fun TopHudBar(
                         value = "${(shootingSolution.confidence * 100).toInt()}%",
                         isActive = shootingSolution.confidence > 0.7f,
                         textColor = when {
-                            shootingSolution.confidence > 0.8f -> Color(0xFF00FF41)
+                            shootingSolution.confidence > 0.8f -> Color(0xFF038C16)
                             shootingSolution.confidence > 0.6f -> Color(0xFFFFAA00)
                             else -> Color(0xFFFF4444)
                         }
@@ -177,7 +177,7 @@ private fun TopHudBar(
                 }
             }
 
-            // Right section - Environmental data (unchanged)
+            // Right section - Environmental data
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -217,7 +217,7 @@ private fun TopHudBar(
                 }
             }
 
-            // Far right section - Status indicators (unchanged)
+            // Far right section - Status indicators
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -241,7 +241,7 @@ private fun HudDataBox(
     label: String,
     value: String,
     isActive: Boolean,
-    textColor: Color? = null  // ← NEW: Optional custom text color
+    textColor: Color? = null
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -321,13 +321,13 @@ private fun VideoFeedSection(
 ) {
     TacticalVideoPlayer(
         detectedTargets = detectedTargets,
-        shootingSolution = shootingSolution,  // ← NEW: Pass solution
-        selectedTargetId = selectedTargetId,  // ← NEW: Pass selected ID
+        shootingSolution = shootingSolution,
+        selectedTargetId = selectedTargetId,
         onTargetClick = { target ->
             Log.d("Dashboard", "Target clicked: ${target.id}")
         },
-        onTargetSelect = onTargetSelect,  // ← NEW: Pass callback
-        onTargetLockToggle = onTargetLockToggle,  // ← NEW: Pass lock/unlock callback
+        onTargetSelect = onTargetSelect,
+        onTargetLockToggle = onTargetLockToggle,
         modifier = modifier
     )
 }
