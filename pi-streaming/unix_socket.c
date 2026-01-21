@@ -222,10 +222,9 @@ int ipc_recv_message(IPCConnection *conn, char *buffer, size_t buffsize)
             conn->client_fd = -1;
             return -1;
         }
-        // EAGAIN/EWOULDBLOCK means no data available - that's OK
+        // EAGAIN/EWOULDBLOCK mean no data available - that's OK
         else if (bytes_read < 0 && errno != EAGAIN && errno != EWOULDBLOCK)
         {
-            // Real error
             perror("recv");
             close(conn->client_fd);
             conn->client_fd = -1;

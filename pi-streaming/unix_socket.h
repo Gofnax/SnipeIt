@@ -29,10 +29,10 @@
 
 typedef struct
 {
-    int server_fd;      /* Server socket file descriptor (listens for connections) */
-    int client_fd;      /* Connected client file descriptor (Python script) */
-    char recv_buffer[RECV_BUFFER_SIZE];  /* Buffer for partial message assembly */
-    size_t recv_len;    /* Current length of data in recv_buffer */
+    int server_fd;                          // Server socket file descriptor (listens for connections)
+    int client_fd;                          // Connected client file descriptor (Python script)
+    char recv_buffer[RECV_BUFFER_SIZE];     // Buffer for partial message assembly
+    size_t recv_len;                        // Current length of data in recv_buffer
 } IPCConnection;
 
 /**

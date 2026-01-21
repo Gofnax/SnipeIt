@@ -1,6 +1,7 @@
 # mediaMTX binary (large, can be re-downloaded)
 mediamtx
 mediamtx_*.tar.gz
+test_ipc
 
 # Logs
 *.log
