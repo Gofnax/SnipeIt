@@ -59,8 +59,6 @@ static int sendall(int fd, const char *buf, size_t len)
 
 int ipc_server_init(IPCConnection *conn)
 {
-    struct sockaddr_un addr;
-    
     // Initialize structure
     *conn = (IPCConnection){
         .server_fd = -1,
@@ -79,8 +77,10 @@ int ipc_server_init(IPCConnection *conn)
         perror("socket");
         return -1;
     }
-    memset(&addr, 0, sizeof(addr));
-    addr.sun_family = AF_UNIX;
+
+    struct sockaddr_un addr = {
+        .sun_family = AF_UNIX
+    };
     strncpy(addr.sun_path, SOCKET_PATH, sizeof(addr.sun_path) - 1);
     
     // Bind socket to the path
@@ -143,7 +143,7 @@ int ipc_accept_client(IPCConnection *conn)
     
     // Clear receive buffer
     conn->recv_len = 0;
-    memset(conn->recv_buffer, 0, sizeof(conn->recv_buffer));
+    conn->recv_buffer[0] = '\0';
     
     printf("[IPC] Python client connected\n");
     return 0;
