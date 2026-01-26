@@ -133,7 +133,15 @@ int ipc_accept_client(IPCConnection *conn)
         perror("accept");
         return -1;
     }
-    
+
+    // Increase socket receive buffer to 1MB for high-throughput IPC
+    int rcvbuf = 1024 * 1024;
+    if (setsockopt(conn->client_fd, SOL_SOCKET, SO_RCVBUF, &rcvbuf, sizeof(rcvbuf)) == -1)
+    {
+        perror("setsockopt SO_RCVBUF");
+        // Non-fatal, continue anyway
+    }
+
     // Set client socket to non-blocking for recv
     if (set_nonblocking(conn->client_fd) == -1)
     {
@@ -213,7 +221,7 @@ int ipc_recv_message(IPCConnection *conn, char *buffer, size_t buffsize)
     {
         bytes_read = recv(conn->client_fd, conn->recv_buffer + conn->recv_len,
                  sizeof(conn->recv_buffer) - conn->recv_len - 1, 0);
-        
+
         if (bytes_read > 0)
         {
             conn->recv_len += bytes_read;
