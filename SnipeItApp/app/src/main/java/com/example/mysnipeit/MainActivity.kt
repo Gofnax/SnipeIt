@@ -1,0 +1,185 @@
+package com.example.mysnipeit
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.viewModels
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.mysnipeit.ui.theme.MySniperItTheme
+import com.example.mysnipeit.viewmodel.SniperViewModel
+import com.example.mysnipeit.viewmodel.AppScreen
+import com.example.mysnipeit.ui.home.HomeScreen
+import com.example.mysnipeit.ui.device.DeviceSelectionScreen
+import com.example.mysnipeit.ui.map.MapScreen
+import com.example.mysnipeit.ui.dashboard.DashboardScreen
+import com.google.android.gms.maps.model.LatLng
+import android.util.Log
+import com.example.mysnipeit.ui.diagnostics.DiagnosticsScreen
+
+class MainActivity : ComponentActivity() {
+    private val viewModel: SniperViewModel by viewModels()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            MySniperItTheme {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    SniperApp(viewModel = viewModel)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SniperApp(viewModel: SniperViewModel) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val availableDevices by viewModel.availableDevices.collectAsStateWithLifecycle()
+    val sensorData by viewModel.sensorData.collectAsStateWithLifecycle()
+    val detectedTargets by viewModel.detectedTargets.collectAsStateWithLifecycle()
+    val shootingSolution by viewModel.shootingSolution.collectAsStateWithLifecycle()
+    val systemStatus by viewModel.systemStatus.collectAsStateWithLifecycle()
+    val selectedTargetId = uiState.selectedTargetId
+
+    // User location (mock location for now - can be replaced with real GPS later)
+    val userLocation = remember { LatLng( 31.518209, 34.521274) }
+
+    // Track menu state
+    var showMenu by remember { mutableStateOf(false) }
+
+    when (uiState.currentScreen) {
+        AppScreen.HOME -> {
+            HomeScreen(
+                onDeviceListClick = {
+                    viewModel.navigateToDeviceList()
+                },
+                onMapClick = {
+                    viewModel.navigateToMap()
+                }
+            )
+        }
+
+        AppScreen.DEVICE_SELECTION -> {
+            DeviceSelectionScreen(
+                devices = availableDevices,
+                onDeviceSelected = { device ->
+                    viewModel.selectDevice(device)
+                },
+                onBackClick = {
+                    viewModel.navigateToHome()
+                }
+            )
+        }
+
+        AppScreen.MAP -> {
+            MapScreen(
+                devices = availableDevices,
+                userLocation = userLocation,
+                onDeviceSelected = { device ->
+                    viewModel.selectDevice(device)
+                },
+                onBackClick = {
+                    viewModel.navigateToHome()
+                }
+            )
+        }
+
+        AppScreen.DASHBOARD -> {
+            DashboardScreen(
+                sensorData = sensorData,
+                detectedTargets = detectedTargets,
+                shootingSolution = shootingSolution,
+                systemStatus = systemStatus,
+                selectedTargetId = selectedTargetId,
+                onTargetSelect = { targetId ->
+                    if (targetId.isEmpty()) {
+                        viewModel.deselectTarget()
+                    } else {
+                        viewModel.selectTarget(targetId)
+                    }
+                },
+                onTargetLockToggle = { targetId, isLocking ->
+                    if (isLocking) {
+                        viewModel.lockTarget(targetId)
+                    } else {
+                        viewModel.unlockTarget(targetId)
+                    }
+                },
+                onConnectClick = { viewModel.connectToSystem() },
+                onDisconnectClick = { viewModel.disconnectFromSystem() },
+                onBackClick = { viewModel.goBackFromDashboard() },
+                onMenuClick = { showMenu = true }
+            )
+
+            // Menu dropdown
+            if (showMenu) {
+                DashboardMenu(
+                    onDismiss = { showMenu = false },
+                    onDiagnosticsClick = {
+                        showMenu = false
+                        viewModel.navigateToDiagnostics()
+                    }
+                )
+            }
+        }
+
+        AppScreen.DIAGNOSTICS -> {
+            DiagnosticsScreen(
+                onBackClick = { viewModel.navigateToHome() }
+            )
+        }
+    }
+}
+
+@Composable
+fun DashboardMenu(
+    onDismiss: () -> Unit,
+    onDiagnosticsClick: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Menu",
+                style = MaterialTheme.typography.titleLarge
+            )
+        },
+        text = {
+            Column {
+                TextButton(
+                    onClick = onDiagnosticsClick,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Start,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "⚙ ",
+                            fontSize = 20.sp
+                        )
+                        Text(
+                            text = "Diagnostics",
+                            fontSize = 16.sp
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        }
+    )
+}
