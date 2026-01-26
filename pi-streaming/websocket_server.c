@@ -68,9 +68,12 @@ static int ws_callback(struct lws *wsi, enum lws_callback_reasons reason,
             {
                 ws->client_wsi = NULL;
                 ws->client_connected = false;
-                ws->send_pending = false;
-                ws->send_len = 0;
-                
+
+                // Clear message queue
+                ws->queue_head = 0;
+                ws->queue_tail = 0;
+                ws->queue_count = 0;
+
                 // Call user callback
                 if (ws->on_disconnect)
                 {
@@ -80,30 +83,40 @@ static int ws_callback(struct lws *wsi, enum lws_callback_reasons reason,
             break;
             
         case LWS_CALLBACK_SERVER_WRITEABLE:
-            if (ws && ws->send_pending && ws->send_len > 0)
+            if (ws && ws->queue_count > 0)
             {
+                // Get message from queue
+                WsQueuedMessage *msg = &ws->queue[ws->queue_tail];
+
                 // Prepare buffer with LWS_PRE padding
                 unsigned char buf[LWS_PRE + WS_MAX_MSG_SIZE];
-                size_t msg_len = ws->send_len;
-                
+                size_t msg_len = msg->len;
+
                 if (msg_len > WS_MAX_MSG_SIZE - LWS_PRE)
                 {
                     msg_len = WS_MAX_MSG_SIZE - LWS_PRE;
                 }
-                
-                memcpy(&buf[LWS_PRE], ws->send_buffer, msg_len);
-                
+
+                memcpy(&buf[LWS_PRE], msg->data, msg_len);
+
                 // Send as text message
                 int written = lws_write(wsi, &buf[LWS_PRE], msg_len, LWS_WRITE_TEXT);
-                
+
                 if (written < (int)msg_len)
                 {
-                    fprintf(stderr, "[WS] Write error: wrote %d of %zu bytes\n", 
+                    fprintf(stderr, "[WS] Write error: wrote %d of %zu bytes\n",
                             written, msg_len);
                 }
-                
-                ws->send_pending = false;
-                ws->send_len = 0;
+
+                // Remove message from queue
+                ws->queue_tail = (ws->queue_tail + 1) % WS_QUEUE_SIZE;
+                ws->queue_count--;
+
+                // If more messages in queue, request another callback
+                if (ws->queue_count > 0)
+                {
+                    lws_callback_on_writable(wsi);
+                }
             }
             break;
             
@@ -145,10 +158,20 @@ int ws_init(WebSocketServer *ws, int port)
         .on_connect = NULL,
         .on_disconnect = NULL,
         .callback_user_data = NULL,
-        .send_buffer = { 0 },
-        .send_len = 0,
-        .send_pending = false
+        .queue = NULL,
+        .queue_head = 0,
+        .queue_tail = 0,
+        .queue_count = 0,
+        .queue_dropped = 0
     };
+
+    // Allocate message queue
+    ws->queue = (WsQueuedMessage *)calloc(WS_QUEUE_SIZE, sizeof(WsQueuedMessage));
+    if (!ws->queue)
+    {
+        fprintf(stderr, "[WS] Failed to allocate message queue\n");
+        return -1;
+    }
     
     // Set protocol user data to point to our server struct
     protocols[0].user = ws;
@@ -205,51 +228,51 @@ bool ws_is_client_connected(WebSocketServer *ws)
     return ws->client_connected;
 }
 
-int ws_send(WebSocketServer *ws, const char *message)
+// Internal: add message to queue (non-blocking)
+static int ws_queue_message(WebSocketServer *ws, const char *data, size_t len)
 {
-    if (!ws->client_connected || !ws->client_wsi)
+    if (!ws->client_connected || !ws->client_wsi || !ws->queue)
     {
         return -1;
     }
-    
-    size_t len = strlen(message);
+
     if (len >= WS_MAX_MSG_SIZE)
     {
         fprintf(stderr, "[WS] Message too large: %zu bytes\n", len);
         return -1;
     }
-    
-    // Copy to send buffer
-    memcpy(ws->send_buffer, message, len);
-    ws->send_len = len;
-    ws->send_pending = true;
-    
-    // Request callback to send
+
+    // Check if queue is full
+    if (ws->queue_count >= WS_QUEUE_SIZE)
+    {
+        // Drop oldest message to make room (or could drop this new one)
+        ws->queue_tail = (ws->queue_tail + 1) % WS_QUEUE_SIZE;
+        ws->queue_count--;
+        ws->queue_dropped++;
+    }
+
+    // Add to queue
+    WsQueuedMessage *msg = &ws->queue[ws->queue_head];
+    memcpy(msg->data, data, len);
+    msg->len = len;
+
+    ws->queue_head = (ws->queue_head + 1) % WS_QUEUE_SIZE;
+    ws->queue_count++;
+
+    // Request callback to send (if not already requested)
     lws_callback_on_writable(ws->client_wsi);
-    
+
     return 0;
+}
+
+int ws_send(WebSocketServer *ws, const char *message)
+{
+    return ws_queue_message(ws, message, strlen(message));
 }
 
 int ws_send_json(WebSocketServer *ws, const char *json, size_t len)
 {
-    if (!ws->client_connected || !ws->client_wsi)
-    {
-        return -1;
-    }
-    
-    if (len >= WS_MAX_MSG_SIZE)
-    {
-        fprintf(stderr, "[WS] JSON message too large: %zu bytes\n", len);
-        return -1;
-    }
-    
-    memcpy(ws->send_buffer, json, len);
-    ws->send_len = len;
-    ws->send_pending = true;
-    
-    lws_callback_on_writable(ws->client_wsi);
-    
-    return 0;
+    return ws_queue_message(ws, json, len);
 }
 
 int ws_get_poll_fd(WebSocketServer *ws)
@@ -269,10 +292,26 @@ void ws_cleanup(WebSocketServer *ws)
         lws_context_destroy(ws->context);
         ws->context = NULL;
     }
-    
+
+    // Free message queue
+    if (ws->queue)
+    {
+        free(ws->queue);
+        ws->queue = NULL;
+    }
+
+    // Report dropped messages if any
+    if (ws->queue_dropped > 0)
+    {
+        printf("[WS] Warning: %d messages were dropped due to full queue\n", ws->queue_dropped);
+    }
+
     ws->running = false;
     ws->client_connected = false;
     ws->client_wsi = NULL;
-    
+    ws->queue_head = 0;
+    ws->queue_tail = 0;
+    ws->queue_count = 0;
+
     printf("[WS] Cleanup complete\n");
 }

@@ -20,9 +20,19 @@ struct lws_context;
 // Maximum message size for WebSocket
 #define WS_MAX_MSG_SIZE 4096
 
+// Message queue settings
+#define WS_QUEUE_SIZE 256  // Number of messages in queue (ring buffer)
+
 // Callback function types
 typedef void (*ws_connect_callback)(void *user_data);
 typedef void (*ws_disconnect_callback)(void *user_data);
+
+// Single queued message
+typedef struct
+{
+    char data[WS_MAX_MSG_SIZE];
+    size_t len;
+} WsQueuedMessage;
 
 typedef struct
 {
@@ -31,16 +41,18 @@ typedef struct
     int port;                               // Listening port
     bool running;                           // Whether server is running
     bool client_connected;                  // Whether a client is connected
-    
+
     // Callbacks
     ws_connect_callback on_connect;         // Called when client connects
     ws_disconnect_callback on_disconnect;   // Called when client disconnects
     void *callback_user_data;               // User data passed to callbacks
-    
-    // Send buffer (messages queued for sending)
-    char send_buffer[WS_MAX_MSG_SIZE];
-    size_t send_len;
-    bool send_pending;
+
+    // Message queue (ring buffer) for non-blocking sends
+    WsQueuedMessage *queue;                 // Dynamically allocated queue
+    int queue_head;                         // Next position to write
+    int queue_tail;                         // Next position to read
+    int queue_count;                        // Number of messages in queue
+    int queue_dropped;                      // Count of dropped messages (for stats)
 } WebSocketServer;
 
 /**

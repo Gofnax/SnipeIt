@@ -75,18 +75,8 @@ static void on_android_connect(void *user_data)
             pm_stop_ffmpeg(&app->pm);
         }
 
-        // Start FFmpeg - video begins from start
-        if (pm_start_ffmpeg(&app->pm, &app->config) != 0)
-        {
-            fprintf(stderr, "[MAIN] Failed to start FFmpeg\n");
-            return;
-        }
-
-        // Wait for FFmpeg to initialize and start publishing to mediaMTX
-        printf("[MAIN] Waiting for stream to initialize...\n");
-        usleep(2000000);  // 2 seconds for FFmpeg to start publishing
-
-        // Send START command to Python to begin detections
+        // Send START command to Python FIRST (so it's ready when video starts)
+        // Python will open the video and wait for frames
         if (ipc_send_start(&app->ipc,
                            app->config.video_path,
                            app->config.video_duration_sec,
@@ -95,14 +85,27 @@ static void on_android_connect(void *user_data)
                            app->config.detection_frame_interval) != 0)
         {
             fprintf(stderr, "[MAIN] Failed to send START to Python\n");
-            pm_stop_ffmpeg(&app->pm);
             return;
         }
+
+        // Small delay for Python to open video file
+        usleep(100000);  // 100ms
+
+        // Start FFmpeg - video streaming begins
+        if (pm_start_ffmpeg(&app->pm, &app->config) != 0)
+        {
+            fprintf(stderr, "[MAIN] Failed to start FFmpeg\n");
+            ipc_send_stop(&app->ipc);
+            return;
+        }
+
+        // Wait for FFmpeg to initialize and start publishing to mediaMTX
+        printf("[MAIN] Waiting for stream to initialize...\n");
+        usleep(1000000);  // 1 second for FFmpeg to start publishing
 
         app->streaming_active = true;
 
         // Send stream_ready message to Android
-        // Android knows the Pi's IP from the WebSocket connection, so we just send port and stream
         char ready_msg[256];
         snprintf(ready_msg, sizeof(ready_msg),
                  "{\"event\":\"stream_ready\",\"rtsp_port\":%d,\"stream_name\":\"%s\"}",
@@ -153,13 +156,7 @@ static void forward_detection(AppState *app, const char *json, size_t len)
         {
             fprintf(stderr, "[MAIN] Failed to forward detection to Android\n");
         }
-        else
-        {
-            // IMPORTANT: Flush immediately! ws_send_json uses a single buffer
-            // that gets overwritten on each call. We must service the WebSocket
-            // to actually send the message before the next one overwrites it.
-            ws_service(&app->ws, 0);
-        }
+        // Note: ws_send_json now queues messages - they'll be sent when ws_service runs
     }
 }
 
@@ -304,33 +301,41 @@ int main(int argc, char *argv[])
     // Main event loop
     char msg_buffer[MAX_MSG_SIZE];
     int ws_service_counter = 0;
+    int total_processed = 0;  // Total detection messages processed
 
     while (g_running)
     {
         int did_work = 0;
 
-        // Check for messages from Python FIRST - prioritize IPC throughput
+        // Check for messages from Python - read in small batches to allow WS sending
         if (app.python_connected && ipc_check_client_connected(&app.ipc))
         {
             int len;
             int msg_count = 0;
-            // Read all available messages to prevent buffer buildup
-            while ((len = ipc_recv_message(&app.ipc, msg_buffer, sizeof(msg_buffer))) > 0)
+            int batch_limit = 10;  // Read up to 10 messages per batch, then service WS
+
+            while (batch_limit-- > 0 &&
+                   (len = ipc_recv_message(&app.ipc, msg_buffer, sizeof(msg_buffer))) > 0)
             {
                 msg_count++;
+                total_processed++;
                 did_work = 1;
-                // Forward to Android
+                // Queue for Android (non-blocking)
                 forward_detection(&app, msg_buffer, len);
             }
+
             if (msg_count > 0)
             {
-                printf("[MAIN] Processed %d detection messages\n", msg_count);
+                printf("[MAIN] Processed %d detection messages (total: %d)\n", msg_count, total_processed);
+                // Service WebSocket to start sending queued messages
+                ws_service(&app.ws, 0);
             }
 
             if (len < 0)
             {
                 // Python disconnected
                 printf("[MAIN] Python detection script disconnected\n");
+                printf("[MAIN] Total detection messages processed: %d\n", total_processed);
                 app.python_connected = false;
 
                 // Stop streaming if active
@@ -342,8 +347,8 @@ int main(int argc, char *argv[])
             }
         }
 
-        // Service WebSocket on fixed interval to not block IPC
-        if (++ws_service_counter >= 100)
+        // Service WebSocket periodically for connection handling
+        if (++ws_service_counter >= 10)
         {
             ws_service(&app.ws, 0);  // Non-blocking
             ws_service_counter = 0;
