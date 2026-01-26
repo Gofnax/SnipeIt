@@ -64,12 +64,14 @@ echo ""
 # -c copy      : Copy codecs without re-encoding (preserves PTS)
 # -f rtsp      : Output format
 # -rtsp_transport tcp : Use TCP for RTSP (more reliable)
-ffmpeg -re \
-    -i "$VIDEO_FILE" \
-    -c copy \
-    -f rtsp \
-    -rtsp_transport tcp \
-    "$RTSP_URL"
+ffmpeg -re \                                                                                                                      
+      -i "$VIDEO_FILE" \                                                                                                            
+      -c:v libx264 -preset ultrafast -tune zerolatency \                                                                            
+      -g 30 -keyint_min 30 \                                                                                                        
+      -c:a aac -b:a 128k \                                                                                                          
+      -f rtsp \                                                                                                                     
+      -rtsp_transport tcp \                                                                                                         
+      "$RTSP_URL" 
 
 echo ""
 echo "Stream ended."

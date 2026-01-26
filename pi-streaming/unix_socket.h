@@ -24,8 +24,8 @@
 // Maximum message size (should be enough for JSON with multiple detections)
 #define MAX_MSG_SIZE 4096
 
-// Message buffer for receiving partial messages
-#define RECV_BUFFER_SIZE 8192
+// Message buffer for receiving partial messages (increased for high throughput)
+#define RECV_BUFFER_SIZE 65536
 
 typedef struct
 {

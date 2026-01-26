@@ -150,13 +150,26 @@ int pm_start_ffmpeg(ProcessManager *pm, const StreamingConfig *config)
         
         // Build loop argument if needed
         // Note: -stream_loop -1 means infinite loop
+        // Re-encode with frequent keyframes to fix green screen on late-joining clients
+        // Use baseline profile for maximum Android compatibility
         if (config->loop_video)
         {
             execl("/usr/bin/ffmpeg", "ffmpeg",
                   "-re",                        // Read at native framerate
                   "-stream_loop", "-1",         // Loop infinitely
                   "-i", config->video_path,     // Input file
-                  "-c", "copy",                 // Copy codecs (no re-encoding)
+                  "-c:v", "libx264",            // Re-encode video with H.264
+                  "-profile:v", "baseline",     // Baseline profile for Android
+                  "-level", "4.0",              // Level 4.0 for 1080p compatibility
+                  "-preset", "ultrafast",       // Fastest encoding (low CPU)
+                  "-tune", "zerolatency",       // Minimize latency
+                  "-pix_fmt", "yuv420p",        // Explicit pixel format for compatibility
+                  "-g", "30",                   // Keyframe every 30 frames (~1 sec)
+                  "-keyint_min", "30",          // Minimum keyframe interval
+                  "-b:v", "2M",                 // Video bitrate (some decoders need this)
+                  "-maxrate", "2M",             // Max bitrate
+                  "-bufsize", "4M",             // Buffer size
+                  "-an",                        // No audio (source has none)
                   "-f", "rtsp",                 // Output format
                   "-rtsp_transport", "tcp",     // Use TCP for RTSP
                   rtsp_url,                     // Output URL
@@ -167,7 +180,18 @@ int pm_start_ffmpeg(ProcessManager *pm, const StreamingConfig *config)
             execl("/usr/bin/ffmpeg", "ffmpeg",
                   "-re",                        // Read at native framerate
                   "-i", config->video_path,     // Input file
-                  "-c", "copy",                 // Copy codecs (no re-encoding)
+                  "-c:v", "libx264",            // Re-encode video with H.264
+                  "-profile:v", "baseline",     // Baseline profile for Android
+                  "-level", "4.0",              // Level 4.0 for 1080p compatibility
+                  "-preset", "ultrafast",       // Fastest encoding (low CPU)
+                  "-tune", "zerolatency",       // Minimize latency
+                  "-pix_fmt", "yuv420p",        // Explicit pixel format for compatibility
+                  "-g", "30",                   // Keyframe every 30 frames (~1 sec)
+                  "-keyint_min", "30",          // Minimum keyframe interval
+                  "-b:v", "2M",                 // Video bitrate (some decoders need this)
+                  "-maxrate", "2M",             // Max bitrate
+                  "-bufsize", "4M",             // Buffer size
+                  "-an",                        // No audio (source has none)
                   "-f", "rtsp",                 // Output format
                   "-rtsp_transport", "tcp",     // Use TCP for RTSP
                   rtsp_url,                     // Output URL

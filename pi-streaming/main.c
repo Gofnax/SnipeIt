@@ -60,24 +60,34 @@ static void signal_handler(int sig)
 static void on_android_connect(void *user_data)
 {
     AppState *app = (AppState *)user_data;
-    
+
     printf("[MAIN] Android client connected!\n");
     app->android_connected = true;
-    
-    // Start streaming if Python is ready
+
+    // Start fresh video stream when Android connects
     if (app->python_connected && !app->streaming_active)
     {
         printf("[MAIN] Starting video stream...\n");
-        
-        // Start FFmpeg
+
+        // Stop any existing FFmpeg (in case of reconnect)
+        if (pm_is_ffmpeg_running(&app->pm))
+        {
+            pm_stop_ffmpeg(&app->pm);
+        }
+
+        // Start FFmpeg - video begins from start
         if (pm_start_ffmpeg(&app->pm, &app->config) != 0)
         {
             fprintf(stderr, "[MAIN] Failed to start FFmpeg\n");
             return;
         }
-        
-        // Send START command to Python
-        if (ipc_send_start(&app->ipc, 
+
+        // Wait for FFmpeg to initialize and start publishing to mediaMTX
+        printf("[MAIN] Waiting for stream to initialize...\n");
+        usleep(2000000);  // 2 seconds for FFmpeg to start publishing
+
+        // Send START command to Python to begin detections
+        if (ipc_send_start(&app->ipc,
                            app->config.video_path,
                            app->config.video_duration_sec,
                            app->config.video_fps,
@@ -88,9 +98,22 @@ static void on_android_connect(void *user_data)
             pm_stop_ffmpeg(&app->pm);
             return;
         }
-        
+
         app->streaming_active = true;
-        printf("[MAIN] Streaming started\n");
+
+        // Send stream_ready message to Android
+        // Android knows the Pi's IP from the WebSocket connection, so we just send port and stream
+        char ready_msg[256];
+        snprintf(ready_msg, sizeof(ready_msg),
+                 "{\"event\":\"stream_ready\",\"rtsp_port\":%d,\"stream_name\":\"%s\"}",
+                 app->config.rtsp_port,
+                 app->config.rtsp_stream_name);
+        ws_send(&app->ws, ready_msg);
+        ws_service(&app->ws, 0);  // Flush immediately
+
+        printf("[MAIN] Streaming started, sent stream_ready to Android\n");
+        printf("[MAIN] Android should connect to: rtsp://<PI_IP>:%d/%s\n",
+               app->config.rtsp_port, app->config.rtsp_stream_name);
     }
 }
 
@@ -98,24 +121,24 @@ static void on_android_connect(void *user_data)
 static void on_android_disconnect(void *user_data)
 {
     AppState *app = (AppState *)user_data;
-    
+
     printf("[MAIN] Android client disconnected\n");
     app->android_connected = false;
-    
-    // Stop streaming
+
+    // Stop streaming completely
     if (app->streaming_active)
     {
         printf("[MAIN] Stopping video stream...\n");
-        
+
         // Send STOP command to Python
         if (app->python_connected)
         {
             ipc_send_stop(&app->ipc);
         }
-        
-        // Stop FFmpeg
+
+        // Stop FFmpeg - will restart fresh when Android reconnects
         pm_stop_ffmpeg(&app->pm);
-        
+
         app->streaming_active = false;
         printf("[MAIN] Streaming stopped, waiting for new connection\n");
     }
@@ -129,6 +152,13 @@ static void forward_detection(AppState *app, const char *json, size_t len)
         if (ws_send_json(&app->ws, json, len) != 0)
         {
             fprintf(stderr, "[MAIN] Failed to forward detection to Android\n");
+        }
+        else
+        {
+            // IMPORTANT: Flush immediately! ws_send_json uses a single buffer
+            // that gets overwritten on each call. We must service the WebSocket
+            // to actually send the message before the next one overwrites it.
+            ws_service(&app->ws, 0);
         }
     }
 }
@@ -178,11 +208,11 @@ int main(int argc, char *argv[])
         .streaming_active = false
     };
     
-    // Set up signal handlers
+    // Set up signal handlers for clean shutdown
     signal(SIGINT, signal_handler);
     signal(SIGTERM, signal_handler);
-    signal(SIGCHLD, SIG_IGN);  // Prevent zombie processes
-    
+    // Note: SIGCHLD handler set after config_probe_video() to allow pclose() to work
+
     // Load configuration
     printf("[MAIN] Loading configuration from %s\n", config_path);
     if (config_load(&app.config, config_path) != 0)
@@ -206,7 +236,11 @@ int main(int argc, char *argv[])
     }
     
     config_print(&app.config);
-    
+
+    // Now set SIGCHLD to ignore to prevent zombie processes from child processes
+    // (mediaMTX, FFmpeg). This must be after config_probe_video() which uses pclose().
+    signal(SIGCHLD, SIG_IGN);
+
     // Initialize process manager
     pm_init(&app.pm);
     
@@ -260,7 +294,7 @@ int main(int argc, char *argv[])
         return 1;
     }
     app.python_connected = true;
-    
+
     printf("\n[MAIN] System ready!\n");
     printf("[MAIN] Waiting for Android app to connect via WebSocket...\n");
     printf("[MAIN] Android should connect to: ws://<PI_IP>:%d\n", app.config.websocket_port);
@@ -269,28 +303,36 @@ int main(int argc, char *argv[])
     
     // Main event loop
     char msg_buffer[MAX_MSG_SIZE];
-    
+    int ws_service_counter = 0;
+
     while (g_running)
     {
-        // Service WebSocket (handles connect/disconnect callbacks)
-        ws_service(&app.ws, 0);  // Non-blocking
-        
-        // Check for messages from Python
+        int did_work = 0;
+
+        // Check for messages from Python FIRST - prioritize IPC throughput
         if (app.python_connected && ipc_check_client_connected(&app.ipc))
         {
-            int len = ipc_recv_message(&app.ipc, msg_buffer, sizeof(msg_buffer));
-            
-            if (len > 0)
+            int len;
+            int msg_count = 0;
+            // Read all available messages to prevent buffer buildup
+            while ((len = ipc_recv_message(&app.ipc, msg_buffer, sizeof(msg_buffer))) > 0)
             {
+                msg_count++;
+                did_work = 1;
                 // Forward to Android
                 forward_detection(&app, msg_buffer, len);
             }
-            else if (len < 0)
+            if (msg_count > 0)
+            {
+                printf("[MAIN] Processed %d detection messages\n", msg_count);
+            }
+
+            if (len < 0)
             {
                 // Python disconnected
                 printf("[MAIN] Python detection script disconnected\n");
                 app.python_connected = false;
-                
+
                 // Stop streaming if active
                 if (app.streaming_active)
                 {
@@ -299,7 +341,20 @@ int main(int argc, char *argv[])
                 }
             }
         }
-        
+
+        // Service WebSocket on fixed interval to not block IPC
+        if (++ws_service_counter >= 100)
+        {
+            ws_service(&app.ws, 0);  // Non-blocking
+            ws_service_counter = 0;
+        }
+
+        // Small sleep when no IPC work to prevent 100% CPU
+        if (!did_work)
+        {
+            usleep(100);  // 100 microseconds
+        }
+
         // Check if FFmpeg is still running (for non-looping video)
         if (app.streaming_active && !app.config.loop_video)
         {
@@ -319,8 +374,8 @@ int main(int argc, char *argv[])
             }
         }
         
-        // Small delay to prevent busy-waiting
-        usleep(10000);  // 10ms
+        // Only sleep if no work was done this iteration
+        // This ensures we process IPC as fast as possible when data is available
     }
     
     // Cleanup

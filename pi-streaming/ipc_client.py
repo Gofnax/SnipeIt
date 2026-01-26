@@ -61,22 +61,24 @@ class IPCClient:
     def connect(self, timeout: float = 30.0, retry_interval: float = 1.0) -> bool:
         """
         Connect to the C server.
-        
+
         Will retry connection until timeout if server isn't ready yet.
-        
+
         Args:
             timeout: Maximum time to wait for connection (seconds)
             retry_interval: Time between connection attempts (seconds)
-            
+
         Returns:
             True if connected, False if timeout
         """
         start_time = time.time()
-        
+
         while time.time() - start_time < timeout:
             try:
                 # Create Unix domain socket
                 self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                # Increase send buffer for high-throughput IPC
+                self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 1024 * 1024)
                 self.sock.connect(self.socket_path)
                 self.connected = True
                 print(f"[IPC] Connected to {self.socket_path}")
@@ -171,7 +173,7 @@ class IPCClient:
     def send_detection(self, timestamp_ms: int, detections: List[Dict[str, Any]]) -> bool:
         """
         Send detection data to the C server.
-        
+
         Args:
             timestamp_ms: Video timestamp in milliseconds (PTS)
             detections: List of detection dictionaries, each containing:
@@ -179,21 +181,23 @@ class IPCClient:
                 - class: Object class (e.g., "person")
                 - confidence: Confidence score (0.0 to 1.0)
                 - bbox: Bounding box dict with x, y, width, height
-                
+
         Returns:
             True if sent successfully, False otherwise
         """
         if not self.connected or not self.sock:
             print("[IPC] Not connected")
             return False
-        
+
         msg = {
             "type": "target_detection",
             "timestamp_ms": timestamp_ms,
             "detections": detections
         }
-        
+
         try:
+            # Reset timeout for send (check_for_command sets it to 10ms)
+            self.sock.settimeout(5.0)  # 5 second timeout for sends
             # Serialize to JSON with newline delimiter
             data = json.dumps(msg, separators=(',', ':')) + '\n'
             self.sock.sendall(data.encode('utf-8'))
@@ -206,18 +210,20 @@ class IPCClient:
     def send_raw(self, data: Dict[str, Any]) -> bool:
         """
         Send raw JSON data to the C server.
-        
+
         Args:
             data: Dictionary to send as JSON
-            
+
         Returns:
             True if sent successfully, False otherwise
         """
         if not self.connected or not self.sock:
             print("[IPC] Not connected")
             return False
-        
+
         try:
+            # Reset timeout for send (check_for_command sets it to 10ms)
+            self.sock.settimeout(5.0)  # 5 second timeout for sends
             msg = json.dumps(data, separators=(',', ':')) + '\n'
             self.sock.sendall(msg.encode('utf-8'))
             return True
