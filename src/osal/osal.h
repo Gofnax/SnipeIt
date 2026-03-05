@@ -97,4 +97,14 @@ eStatus osal_thread_create(void** thread, EntryFP entry_func, void* arg);
  */
 void osal_thread_join(void* thread);
 
+void osal_delay_us(uint64_t us);
+void osal_delay_ms(uint64_t ms);
+
+typedef void (*TimerHandlerFP)(void* arg);
+
+eStatus osal_timer_init(void** timer, TimerHandlerFP handler, void* arg);
+eStatus osal_timer_arm(void* timer, uint64_t ms, eTimerType type);
+eStatus osal_timer_disarm(void* timer);
+void osal_timer_destroy(void* timer);
+
 #endif

@@ -6,6 +6,13 @@
 #include <stddef.h>
 #include <time.h>
 
+static inline uint64_t monotonic_ns(void)
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint64_t)ts.tv_sec * 1000000000ull + (uint64_t)ts.tv_nsec;
+}
+
 void* osal_alloc(size_t size)
 {
     return malloc(size);
@@ -124,4 +131,49 @@ void osal_thread_join(void* thread)
         pthread_join(*((pthread_t*)(thread)), NULL);
         free(thread);
     }
+}
+
+void osal_delay_us(uint64_t us)
+{
+    volatile uint64_t start = monotonic_ns();
+    volatile uint64_t duration = us * 1000ull;
+
+    while ((monotonic_ns() - start) < duration) {
+        // busy wait
+    }
+}
+
+void osal_delay_ms(uint64_t ms)
+{
+    osal_delay_us(ms * 1000ull);
+}
+
+eStatus osal_timer_init(void** timer, TimerHandlerFP handler, void* arg)
+{
+    (void)timer;
+    (void)handler;
+    (void)arg;
+
+    return eSTATUS_SUCCESSFUL;
+}
+
+eStatus osal_timer_arm(void* timer, uint64_t ms, eTimerType type)
+{
+    (void)timer;
+    (void)ms;
+    (void)type;
+
+    return eSTATUS_SUCCESSFUL;
+}
+
+eStatus osal_timer_disarm(void* timer)
+{
+    (void)timer;
+
+    return eSTATUS_SUCCESSFUL;
+}
+
+void osal_timer_destroy(void* timer)
+{
+    (void)timer;
 }
