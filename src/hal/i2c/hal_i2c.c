@@ -21,7 +21,8 @@ typedef struct
     char*       path;       /** Path to the I2C bus, e.g. "/dev/i2c-1" */
     int         fd;         /** File descriptor for the I2C device */
     uint16_t    flags;      /** Flags determining the functionality of the messages handled by the device  */
-    uint8_t    address;    /** Slave address used to for communication */
+    uint8_t     address;    /** Slave address used to for communication */
+    uint8_t     padding;
 } I2CDevice;
 
 static I2CDevice i2c_devices[eI2C_DEVICE_COUNT] = {

@@ -3,6 +3,7 @@
 
 /* Standard library includes */
 #include <stdint.h>
+#include <stddef.h>
 
 /* User library includes */
 #include "status.h"

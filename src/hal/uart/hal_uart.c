@@ -154,7 +154,7 @@ eHALReturnValue hal_uart_read(uint32_t device_index, void* buffer, size_t num_by
         return eRETURN_NULL_PARAMETER;
     }
 
-    size_t bytes_read = 0;
+    ssize_t bytes_read = 0;
     while(num_bytes > 0)
     {
         bytes_read = read(uart_devices[device_index].fd, buffer, num_bytes);
@@ -170,7 +170,7 @@ eHALReturnValue hal_uart_read(uint32_t device_index, void* buffer, size_t num_by
                 return eRETURN_DEVICE_ERROR;
             }
         }
-        buffer += bytes_read;
+        buffer = (uint8_t*)buffer + bytes_read;
         num_bytes -= bytes_read;
     }
 
@@ -189,7 +189,7 @@ eHALReturnValue hal_uart_write(uint32_t device_index, const void* buffer, size_t
         return eRETURN_NULL_PARAMETER;
     }
 
-    size_t bytes_written = 0;
+    ssize_t bytes_written = 0;
     while(num_bytes > 0)
     {
         bytes_written = write(uart_devices[device_index].fd, buffer, num_bytes);
@@ -205,7 +205,7 @@ eHALReturnValue hal_uart_write(uint32_t device_index, const void* buffer, size_t
                 return eRETURN_INVALID_DEVICE;
             }
         }
-        buffer += bytes_written;
+        buffer = (uint8_t*)buffer + bytes_written;
         num_bytes -= bytes_written;
     }
 

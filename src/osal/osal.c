@@ -6,7 +6,7 @@
 #include <stddef.h>
 #include <time.h>
 
-static inline uint64_t monotonic_ns(void)
+static uint64_t monotonic_ns(void)
 {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);

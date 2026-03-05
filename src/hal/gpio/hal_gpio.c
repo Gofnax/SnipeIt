@@ -12,11 +12,12 @@ static struct gpiod_chip* gpio_chip = NULL;
 
 typedef struct
 {
-    uint8_t             pin;        // Associates to GPIO pin on board (software pin, not physical pin)
     struct gpiod_line*  line;       // Handle to the specific line
+    uint8_t             pin;        // Associates to GPIO pin on board (software pin, not physical pin)
     uint8_t             direction;  // Specifies signal direction: input or output
     uint8_t             pull;       // Specifies the pullup or pulldown activation
     uint8_t             edge;       // Specifies edge trigger for device activation
+    uint32_t            padding;
 } GPIODevice;
 
 static GPIODevice gpio_devices[eGPIO_DEVICE_COUNT] = 
@@ -157,5 +158,5 @@ eHALReturnValue hal_gpio_write(uint32_t device_index, int value)
 // TO-DO implementation
 eHALReturnValue hal_gpio_set_direction(void)
 {
-
+    return 0;
 }
