@@ -1,1 +1,2 @@
-./videos
+# Ignore pre-recorded videos folder
+videos/

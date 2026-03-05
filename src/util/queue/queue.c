@@ -42,8 +42,8 @@ eStatus util_queue_push(Queue* queue, void* element)
     {
         return eSTATUS_NULL_PARAM;
     }
-
-    /* Make surte the queue is not full */
+    
+    /* Make sure the queue is not full */
     osal_mutex_lock(queue->mutex);
     if(queue->size == queue->capacity)
     {
