@@ -3,6 +3,7 @@
 /* Standard libraries */
 #include <stddef.h>
 
+/* The entry function with which we start the Active Object thread*/
 static void* active_entry(void* arg)
 {
     ActiveObject* active_object = (ActiveObject*)arg;
