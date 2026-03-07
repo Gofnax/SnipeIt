@@ -13,6 +13,7 @@ typedef enum eStatus
     eSTATUS_SYSTEM_ERROR,   /**< Calling the API caused a system error        */
     eSTATUS_ACTION_FAILED,  /**< Requested action failed                      */
     eSTATUS_INVALID_CONFIG, /**< Invalid configuration                        */
+    eSTATUS_DEVICE_ERROR    /**< Device error occurred                        */
 } eStatus;
 
 #endif

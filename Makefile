@@ -53,8 +53,7 @@ CPPFLAGS.release := -DNDEBUG
 CPPFLAGS.debug :=
 # Common preprocessor flags: enable _GNU_SOURCE, add include paths, and instruct
 # GCC to auto-generate dependency files (.d) during compilation.
-CPPFLAGS := -D_GNU_SOURCE -D_POSIX_C_SOURCE=200809L $(CPPFLAGS.$(BUILD)) \
-            -I$(SRC_DIR) -I$(INCLUDE_DIR) -MMD -MP
+CPPFLAGS := -D_GNU_SOURCE $(CPPFLAGS.$(BUILD)) -I$(SRC_DIR) -I$(INCLUDE_DIR) -MMD -MP
 # Release build linker flags.
 LDFLAGS.release := -s
 # Debug build linker flags.
@@ -63,10 +62,9 @@ LDFLAGS.debug :=
 LIBPATHS :=
 # Common linker flags: include build-specific flags, optional library paths, 
 # linker map output, and enable garbage collection of unused functions/data.
-LDFLAGS := $(LDFLAGS.$(BUILD)) $(LIBPATHS) -Wl,-Map=$(BIN_DIR)/$(TARGET).map \
-           -Wl,--gc-sections #-Wl,--print-gc-sections
+LDFLAGS := $(LDFLAGS.$(BUILD)) $(LIBPATHS) -Wl,--gc-sections
 # Link libraries
-LDLIBS := -lm -pthread
+LDLIBS := -lm -pthread -luring -lgpiod
 
 # ------------------------------ CPPCheck config ----------------------------- #
 

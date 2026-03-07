@@ -1,7 +1,8 @@
 #include "hal_gpio.h"
 
 /* Linux Specific Libraries */
-#include <gpiod.h>  // requires to add the flag '-lgpiod' when compiling
+#include <gpiod.h>
+#include <stddef.h>
 
 /* User Libraries */
 #include "hal_gpio_config.h"
@@ -39,12 +40,12 @@ static GPIODevice gpio_devices[eGPIO_DEVICE_COUNT] =
 
 // May need future editing as we can allow in the final products for
 // some of the devices not to work as needed, and offer limited service.
-eHALReturnValue hal_gpio_init(void)
+eStatus hal_gpio_init(void)
 {
     gpio_chip = gpiod_chip_open(GPIO_CHIP_PATH);
     if(gpio_chip == NULL)
     {
-        return eRETURN_DEVICE_ERROR;
+        return eSTATUS_DEVICE_ERROR;
     }
 
     for(uint32_t i = 0; i < eGPIO_DEVICE_COUNT; ++i)
@@ -52,7 +53,7 @@ eHALReturnValue hal_gpio_init(void)
         gpio_devices[i].line = gpiod_chip_get_line(gpio_chip, gpio_devices[i].pin);
         if(gpio_devices[i].line == NULL)
         {
-            return eRETURN_DEVICE_ERROR;
+            return eSTATUS_DEVICE_ERROR;
         }
 
         struct gpiod_line_request_config config = {
@@ -79,12 +80,12 @@ eHALReturnValue hal_gpio_init(void)
             config.request_type = GPIOD_LINE_REQUEST_EVENT_BOTH_EDGES;
             break;
         default:
-            return eRETURN_INVALID_PARAMETER;
+            return eSTATUS_INVALID_VALUE;
         }
         // Edge configuration only relevant for INPUT mode
         if(gpio_devices[i].direction == eGPIO_OUTPUT && gpio_devices[i].edge != eGPIO_EDGE_NONE)
         {
-            return eRETURN_INVALID_PARAMETER;
+            return eSTATUS_INVALID_VALUE;
         }
 
         switch(gpio_devices[i].pull)
@@ -99,64 +100,70 @@ eHALReturnValue hal_gpio_init(void)
             config.flags = GPIOD_LINE_REQUEST_FLAG_BIAS_PULL_DOWN;
             break;
         default:
-            return eRETURN_INVALID_PARAMETER;
+            return eSTATUS_INVALID_VALUE;
         }
 
         if(gpiod_line_request(gpio_devices[i].line, &config, 0) < 0)
         {
-            return eRETURN_DEVICE_ERROR;
+            return eSTATUS_DEVICE_ERROR;
         }
     }
 
-    return eRETURN_SUCCESS;
+    return eSTATUS_SUCCESSFUL;
 }
 
-eHALReturnValue hal_gpio_read(uint32_t device_index, int* buffer)
+eStatus hal_gpio_read(uint32_t device_index, int* buffer)
 {
     if(device_index >= eGPIO_DEVICE_COUNT)
     {
-        return eRETURN_INVALID_DEVICE;
+        return eSTATUS_INVALID_VALUE;
     }
     if(gpio_devices[device_index].direction != eGPIO_INPUT)
     {
-        return eRETURN_DEVICE_ERROR;
+        return eSTATUS_DEVICE_ERROR;
     }
     if(buffer == NULL)
     {
-        return eRETURN_NULL_PARAMETER;
+        return eSTATUS_NULL_PARAM;
     }
 
     int pin_value = gpiod_line_get_value(gpio_devices[device_index].line);
     if(pin_value < 0)
     {
-        return eRETURN_DEVICE_ERROR;
+        return eSTATUS_DEVICE_ERROR;
     }
     
     *buffer = pin_value;
-    return eRETURN_SUCCESS;
+    return eSTATUS_SUCCESSFUL;
 }
 
-eHALReturnValue hal_gpio_write(uint32_t device_index, int value)
+eStatus hal_gpio_write(uint32_t device_index, int value)
 {
     if(device_index >= eGPIO_DEVICE_COUNT)
     {
-        return eRETURN_INVALID_DEVICE;
+        return eSTATUS_INVALID_VALUE;
     }
     if(gpio_devices[device_index].direction != eGPIO_OUTPUT)
     {
-        return eRETURN_DEVICE_ERROR;
+        return eSTATUS_DEVICE_ERROR;
     }
 
     if(gpiod_line_set_value(gpio_devices[device_index].line, value ? 1 : 0) < 0)
     {
-        return eRETURN_DEVICE_ERROR;
+        return eSTATUS_DEVICE_ERROR;
     }
 
-    return eRETURN_SUCCESS;
+    return eSTATUS_SUCCESSFUL;
 }
 
 // TO-DO implementation
-eHALReturnValue hal_gpio_set_direction(void)
+eStatus hal_gpio_set_direction(void)
 {
     return 0;
+}
+
+void hal_gpio_cleanup(void)
+{
+    // TODO: release the gpio lines requested
+    // TODO: close the chip
 }
