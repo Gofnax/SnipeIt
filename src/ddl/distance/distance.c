@@ -33,6 +33,16 @@ eStatus ddl_distance_post(Event* event)
     return util_active_object_post(&distance_aobj.aobj, event);
 }
 
+eStatus ddl_distance_end(void)
+{
+    return util_active_object_end(&distance_aobj.aobj);
+}
+
+void ddl_distance_join(void)
+{
+    util_active_object_join(&distance_aobj.aobj);
+}
+
 void ddl_distance_delete(void)
 {
     util_active_object_delete(&distance_aobj.aobj);

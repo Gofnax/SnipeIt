@@ -51,7 +51,7 @@ static eHALReturnValue hal_i2c_transfer(uint32_t device_index, struct i2c_msg* m
     
     struct i2c_rdwr_ioctl_data transfer = {
         .msgs = messages,
-        .nmsgs = count
+        .nmsgs = (unsigned int)count
     };
 
     if(ioctl(i2c_devices[device_index].fd, I2C_RDWR, &transfer) < 0)
@@ -118,7 +118,7 @@ eHALReturnValue hal_i2c_write(uint32_t device_index, void* buffer, size_t num_by
         {
             .addr = i2c_devices[device_index].address,
             .flags = i2c_devices[device_index].flags,
-            .len = num_bytes,
+            .len = (unsigned short)num_bytes,
             .buf = buffer
         }
     };
@@ -147,7 +147,7 @@ eHALReturnValue hal_i2c_write_reg(uint32_t device_index, uint16_t reg, size_t re
     struct i2c_msg message = {
         .addr = i2c_devices[device_index].address,
         .flags = i2c_devices[device_index].flags,
-        .len = reg_len + num_bytes,
+        .len = (unsigned short)(reg_len + num_bytes),
         .buf = reg_buffer_combined
     };
     eHALReturnValue ret_val = hal_i2c_transfer(device_index, &message, I2C_SINGLE_MESSAGE);
@@ -168,7 +168,7 @@ eHALReturnValue hal_i2c_read(uint32_t device_index, void* buffer, size_t num_byt
     struct i2c_msg message = {
         .addr = i2c_devices[device_index].address,
         .flags = i2c_devices[device_index].flags | I2C_M_RD,    // We add the READ bit to signify a read message
-        .len = num_bytes,
+        .len = (unsigned short)num_bytes,
         .buf = buffer
     };
 
@@ -190,13 +190,13 @@ eHALReturnValue hal_i2c_read_reg(uint32_t device_index, uint16_t reg, size_t reg
         {
             .addr = i2c_devices[device_index].address,
             .flags = i2c_devices[device_index].flags,
-            .len = reg_len,
+            .len = (unsigned short)reg_len,
             .buf = (uint8_t*)&reg
         },
         {
             .addr = i2c_devices[device_index].address,
             .flags = i2c_devices[device_index].flags | I2C_M_RD,
-            .len = num_bytes,
+            .len = (unsigned short)num_bytes,
             .buf = buffer
         }
     };

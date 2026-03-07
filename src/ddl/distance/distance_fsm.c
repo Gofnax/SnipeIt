@@ -5,6 +5,7 @@
 
 /* User library includes */
 #include "ddl/distance/distance_types.h"
+#include "hal/uart/hal_uart.h"
 #include "ddl/ddl_config.h"
 #include "util/log/log.h"
 #include "osal/osal.h"
@@ -41,6 +42,8 @@ typedef struct __attribute__((packed))
     uint16_t reserved1;
     uint8_t  checksum;
 } TOFSenseReadCmd;
+
+static TimerArg timer_arg;
 
 static TOFSenseFrame resp_frame;
 
@@ -89,31 +92,26 @@ static bool is_frame_valid(const TOFSenseFrame *frame, uint32_t old_system_time)
 {
     if(frame->header != eFRAME_HEADER_SYNC)
     {
-        LOG_DEBUG("HEADER: Expected 0x%02X, got 0x%02X", eFRAME_HEADER_SYNC, frame->header);
         return false;
     }
 
     if(frame->mark != eFRAME_RESPONSE_MARK)
     {
-        LOG_DEBUG("MARK: Expected 0x%02X, got 0x%02X", eFRAME_RESPONSE_MARK, frame->mark);
         return false;
     }
 
     if(frame->id != eFRAME_ID)
     {
-        LOG_DEBUG("ID: Expected 0x%02X, got 0x%02X", eFRAME_ID, frame->id);
         return false;
     }
 
     if(to_little_endian32(frame->system_time) == old_system_time)
     {
-        LOG_DEBUG("System Time stuck: 0x%08X", frame->system_time);
         return false;
     }
 
     if(frame->checksum != checksum(frame))
     {
-        LOG_DEBUG("Checksum: Expected 0x%02X, got 0x%02X", checksum(frame), frame->checksum);
         return false;
     }
 
@@ -142,13 +140,6 @@ static void update_distance_frame(DistanceObject* aobj, const TOFSenseFrame *fra
 
     /* Update last sensor time */
     aobj->system_time = to_little_endian32(frame->system_time);
-
-    /* Print sanity check */
-    LOG_DEBUG("distance: %f", (double)aobj->frame->distance);
-    LOG_DEBUG("status: %u", aobj->frame->status);
-    LOG_DEBUG("precision: %u", aobj->frame->precision);
-    LOG_DEBUG("strength: %u", aobj->frame->strength);
-    LOG_DEBUG("system_time: %u", aobj->system_time);
 }
 
 static void retry_handler(DistanceObject* aobj, FSM* fsm)
@@ -173,14 +164,12 @@ static void timeout_handler(void* arg)
     (void)util_active_object_post(&aobj->aobj, &timeout_event);
 }
 
-#if 0
 static void uart_rx_complete_handler(void* arg)
 {
     static Event frame_received_event = { .type = eDISTANCE_EVENT_FRAME_RECEIVED };
     DistanceObject* aobj = (DistanceObject*)arg;
     (void)util_active_object_post(&aobj->aobj, &frame_received_event);
 }
-#endif
 
 void distance_init_state(FSM* fsm, Event* event)
 {
@@ -188,8 +177,10 @@ void distance_init_state(FSM* fsm, Event* event)
     switch(event->type)
     {
     case eFSM_EVENT_INIT:
-        LOG_DEBUG("Sensor init called");
-        if(osal_timer_init(&aobj->timer, timeout_handler, aobj))
+        LOG_DEBUG("INIT entry");
+        timer_arg.handler = timeout_handler;
+        timer_arg.arg     = aobj;
+        if(osal_timer_init(&aobj->timer, &timer_arg))
         {
             (void)util_fsm_transition(fsm, distance_error_state);
         }
@@ -199,7 +190,7 @@ void distance_init_state(FSM* fsm, Event* event)
         }
         break;
     case eFSM_EVENT_EXIT:
-        LOG_DEBUG("Sensor init finished");
+        LOG_DEBUG("INIT exit");
         break;
     default:
         LOG_WARNING("Unknown event type %u", event->type);
@@ -208,11 +199,13 @@ void distance_init_state(FSM* fsm, Event* event)
 
 void distance_error_state(FSM* fsm, Event* event)
 {
-    (void)fsm;
+    DistanceObject* aobj = (DistanceObject*)fsm->arg;
+
     switch(event->type)
     {
     case eFSM_EVENT_ENTRY:
-        LOG_ERROR("Non recoverable error");
+        LOG_ERROR("ERROR entry");
+        aobj->frame->valid = false;
         break;
     default:
         LOG_WARNING("Unknown event type %u", event->type);
@@ -226,15 +219,15 @@ void distance_idle_state(FSM* fsm, Event* event)
     switch(event->type)
     {
     case eFSM_EVENT_ENTRY:
-        LOG_DEBUG("IDLE entered");
+        LOG_DEBUG("IDLE entry");
         aobj->retry = 0;
         break;
     case eDISTANCE_EVENT_READ:
-        LOG_DEBUG("Attempt to read a frame from sensor");
+        LOG_DEBUG("Read event received");
         (void)util_fsm_transition(fsm, distance_read_state);
         break;
     case eFSM_EVENT_EXIT:
-        LOG_DEBUG("IDLE exited");
+        LOG_DEBUG("IDLE exit");
         break;
     default:
         LOG_WARNING("Unknown event type %u", event->type);
@@ -248,10 +241,9 @@ void distance_read_state(FSM* fsm, Event* event)
     switch(event->type)
     {
     case eFSM_EVENT_ENTRY:
-        LOG_DEBUG("READ entered");
-        (void)read_cmd;
-        // TODO: send the read_cmd
-        // TODO: Prepare reading into resp_frame
+        LOG_DEBUG("READ entry");
+        (void)hal_uart_write(eDISTANCE_UART_DEVICE, &read_cmd, sizeof(read_cmd), NULL, NULL);
+        (void)hal_uart_read(eDISTANCE_UART_DEVICE, &resp_frame, sizeof(resp_frame), uart_rx_complete_handler, aobj);
         (void)osal_timer_arm(aobj->timer, eDISTANCE_READ_TIMEOUT_MS, eTIMER_TYPE_ONCE);
         break;
     case eDISTANCE_EVENT_FRAME_RECEIVED:
@@ -260,11 +252,11 @@ void distance_read_state(FSM* fsm, Event* event)
         break;
     case eDISTANCE_EVENT_TIMEOUT:
         LOG_DEBUG("Read timed out");
-        // TODO: Abort current RX reception
+        (void)hal_uart_abort(eDISTANCE_UART_DEVICE);
         retry_handler(aobj, fsm);
         break;
     case eFSM_EVENT_EXIT:
-        LOG_DEBUG("READ exited");
+        LOG_DEBUG("READ exit");
         (void)osal_timer_disarm(aobj->timer);
         break;
     default:
@@ -279,7 +271,7 @@ void distance_update_state(FSM* fsm, Event* event)
     switch(event->type)
     {
     case eFSM_EVENT_ENTRY:
-        LOG_DEBUG("UPDATE entered");
+        LOG_DEBUG("UPDATE entry");
         if(is_frame_valid(&resp_frame, aobj->system_time))
         {
             LOG_DEBUG("Frame is valid");
@@ -288,12 +280,12 @@ void distance_update_state(FSM* fsm, Event* event)
         }
         else
         {
-            LOG_DEBUG("Frame is invalid");
+            LOG_WARNING("Frame is invalid");
             retry_handler(aobj, fsm);
         }
         break;
     case eFSM_EVENT_EXIT:
-        LOG_DEBUG("UPDATE exited");
+        LOG_DEBUG("UPDATE exit");
         break;
     default:
         LOG_WARNING("Unknown event type %u", event->type);

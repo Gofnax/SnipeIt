@@ -10,6 +10,10 @@ eStatus ddl_distance_init(DistanceFrame* frame);
 
 eStatus ddl_distance_post(Event* event);
 
+eStatus ddl_distance_end(void);
+
+void ddl_distance_join(void);
+
 void ddl_distance_delete(void);
 
 #endif

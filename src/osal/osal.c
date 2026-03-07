@@ -4,6 +4,9 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <stddef.h>
+#include <signal.h>
+#include <string.h>
+#include <unistd.h>
 #include <time.h>
 
 static uint64_t monotonic_ns(void)
@@ -11,6 +14,18 @@ static uint64_t monotonic_ns(void)
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (uint64_t)ts.tv_sec * 1000000000ull + (uint64_t)ts.tv_nsec;
+}
+
+static void timer_expired_handler(union sigval arg)
+{
+    TimerArg *timer_arg = arg.sival_ptr;
+    timer_arg->handler(timer_arg->arg);
+}
+
+static inline void timespec_set_ms(struct timespec *ts, uint64_t ms)
+{
+    ts->tv_sec  = (__time_t)(ms / 1000);
+    ts->tv_nsec = (__time_t)((ms % 1000) * 1000000ULL);
 }
 
 void* osal_alloc(size_t size)
@@ -38,6 +53,7 @@ eStatus osal_mutex_init(void** mutex)
 
     if(pthread_mutex_init((pthread_mutex_t*)(*mutex), NULL))
     {
+        free(*mutex);
         return eSTATUS_SYSTEM_ERROR;
     }
 
@@ -78,6 +94,7 @@ eStatus osal_cond_init(void** cond)
 
     if(pthread_cond_init((pthread_cond_t*)(*cond), NULL))
     {
+        free(*cond);
         return eSTATUS_SYSTEM_ERROR;
     }
 
@@ -118,6 +135,7 @@ eStatus osal_thread_create(void** thread, EntryFP entry_func, void* arg)
 
     if(pthread_create((pthread_t*)(*thread), NULL, entry_func, arg))
     {
+        free(*thread);
         return eSTATUS_SYSTEM_ERROR;
     }
 
@@ -128,7 +146,7 @@ void osal_thread_join(void* thread)
 {
     if(thread != NULL)
     {
-        pthread_join(*((pthread_t*)(thread)), NULL);
+        (void)pthread_join(*((pthread_t*)(thread)), NULL);
         free(thread);
     }
 }
@@ -148,32 +166,73 @@ void osal_delay_ms(uint64_t ms)
     osal_delay_us(ms * 1000ull);
 }
 
-eStatus osal_timer_init(void** timer, TimerHandlerFP handler, void* arg)
+eStatus osal_timer_init(void** timer, TimerArg* timer_arg)
 {
-    (void)timer;
-    (void)handler;
-    (void)arg;
+    if(timer == NULL || timer_arg == NULL || timer_arg->handler == NULL)
+    {
+        return eSTATUS_NULL_PARAM;
+    }
+
+    *timer = malloc(sizeof(timer_t));
+    if(*timer == NULL)
+    {
+        return eSTATUS_SYSTEM_ERROR;
+    }
+
+    struct sigevent sig_event = {
+        .sigev_notify            = SIGEV_THREAD,
+        .sigev_notify_function   = timer_expired_handler,
+        .sigev_notify_attributes = NULL,
+        .sigev_value.sival_ptr   = timer_arg
+    };
+
+    if(timer_create(CLOCK_MONOTONIC, &sig_event, (timer_t*)(*timer)) == -1)
+    {
+        free(*timer);
+        return eSTATUS_SYSTEM_ERROR;
+    }
 
     return eSTATUS_SUCCESSFUL;
 }
 
 eStatus osal_timer_arm(void* timer, uint64_t ms, eTimerType type)
 {
-    (void)timer;
-    (void)ms;
-    (void)type;
+    if(timer == NULL)
+    {
+        return eSTATUS_NULL_PARAM;
+    }
+
+    struct itimerspec its = { 0 };
+    timespec_set_ms(&its.it_value, ms);
+
+    if(type == eTIMER_TYPE_REPEAT)
+    {
+        timespec_set_ms(&its.it_interval, ms);
+    }
+    else if(type != eTIMER_TYPE_ONCE)
+    {
+        return eSTATUS_INVALID_VALUE;
+    }
+
+    if(timer_settime(*((timer_t*)(timer)), 0, &its, NULL) == -1) 
+    {
+        return eSTATUS_SYSTEM_ERROR;
+    }
 
     return eSTATUS_SUCCESSFUL;
 }
 
 eStatus osal_timer_disarm(void* timer)
 {
-    (void)timer;
-
-    return eSTATUS_SUCCESSFUL;
+    // Arming timer to 0 disarms it
+    return osal_timer_arm(timer, 0, eTIMER_TYPE_REPEAT);
 }
 
 void osal_timer_destroy(void* timer)
 {
-    (void)timer;
+    if(timer != NULL)
+    {
+        (void)timer_delete(*((timer_t*)(timer)));
+        free(timer);
+    }
 }

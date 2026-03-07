@@ -12,6 +12,7 @@ typedef enum eFSMEvent
     eFSM_EVENT_INIT,
     eFSM_EVENT_ENTRY,
     eFSM_EVENT_EXIT,
+    eFSM_EVENT_END,
     eFSM_EVENT_USER
 } eFSMEvent;
 

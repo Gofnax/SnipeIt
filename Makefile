@@ -53,8 +53,8 @@ CPPFLAGS.release := -DNDEBUG
 CPPFLAGS.debug :=
 # Common preprocessor flags: enable _GNU_SOURCE, add include paths, and instruct
 # GCC to auto-generate dependency files (.d) during compilation.
-CPPFLAGS := -D_GNU_SOURCE $(CPPFLAGS.$(BUILD)) -I$(SRC_DIR) -I$(INCLUDE_DIR) \
-            -MMD -MP
+CPPFLAGS := -D_GNU_SOURCE -D_POSIX_C_SOURCE=200809L $(CPPFLAGS.$(BUILD)) \
+            -I$(SRC_DIR) -I$(INCLUDE_DIR) -MMD -MP
 # Release build linker flags.
 LDFLAGS.release := -s
 # Debug build linker flags.
