@@ -3,7 +3,6 @@
 
 /* Third party includes */
 #include "unity.h"
-#include "CException.h"
 
 /* User code includes */
 #include "util/active_object/active_object.h"
@@ -19,6 +18,7 @@ TEST_SOURCE_FILE("util/active_object/active_object.c")
 /* Test helpers */
 static ActiveObject aobj;
 static EntryFP entry;
+static Event queue_ev[2];
 static void* arg;
 
 static int osal_thread_create_callback(void** thread, EntryFP entry_func, void* arg_p, int cmock_num_calls)
@@ -30,7 +30,9 @@ static int osal_thread_create_callback(void** thread, EntryFP entry_func, void* 
 
 static eStatus util_queue_pop_callback(Queue* queue, void** element, int cmock_num_calls)
 {
-    *((Event**)element) = NULL;
+    static int i = 0;
+    *((Event**)element) = &queue_ev[i];
+    i = (i + 1) % 2;
     return 0;
 }
 
@@ -49,30 +51,27 @@ void setUp(void)
 
 void tearDown(void) 
 {
+    util_queue_push_IgnoreAndReturn(eSTATUS_SUCCESSFUL);
     osal_thread_join_Ignore();
     util_queue_delete_Ignore();
+    util_active_object_end(&aobj);
+    util_active_object_join(&aobj);
     util_active_object_delete(&aobj);
 }
 
 void test_active_object_entry(void)
 {
-    CEXCEPTION_T e;
-
     util_queue_init_IgnoreAndReturn(0);
     osal_thread_create_Stub(osal_thread_create_callback);
     util_fsm_init_IgnoreAndReturn(0);
     util_queue_pop_Stub(util_queue_pop_callback);
-    util_fsm_send_event_ExpectAndThrow(&aobj.active_fsm, NULL, 0x55);
-    (void)util_active_object_init(&aobj, 2, dummy_init);
-
-    Try
-    {
-        entry(arg);
-    }
-    Catch(e)
-    {
-        TEST_ASSERT_EQUAL_HEX(0x55, e);
-    }
+    queue_ev[0].type = eFSM_EVENT_USER;
+    util_fsm_send_event_IgnoreAndReturn(0);
+    queue_ev[1].type = eFSM_EVENT_END;
+    eStatus status = util_active_object_init(&aobj, 2, dummy_init);
+    TEST_ASSERT_EQUAL(eSTATUS_SUCCESSFUL, status);
+    void* ret = entry(arg);
+    TEST_ASSERT_EQUAL(NULL, ret);
 }
 
 void test_active_object_init(void)
@@ -114,9 +113,4 @@ void test_active_object_post(void)
     util_queue_push_IgnoreAndReturn(eSTATUS_ACTION_FAILED);
     status = util_active_object_post(&aobj, &user_event);
     TEST_ASSERT_EQUAL(eSTATUS_ACTION_FAILED, status);
-}
-
-void test_active_object_delete(void)
-{
-    util_active_object_delete(NULL);
 }

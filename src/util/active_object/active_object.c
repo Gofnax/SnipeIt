@@ -16,6 +16,11 @@ static void* active_entry(void* arg)
     for(;;)
     {
         (void)util_queue_pop(&active_object->event_queue, &event);
+        if(((Event*)event)->type == eFSM_EVENT_END)
+        {
+            break;
+        }
+
         (void)util_fsm_send_event(&active_object->active_fsm, event);
     }
 
@@ -62,11 +67,18 @@ eStatus util_active_object_post(ActiveObject* active_object, Event* event)
     return eSTATUS_SUCCESSFUL;
 }
 
+eStatus util_active_object_end(ActiveObject* active_object)
+{
+    static Event end_event = { .type = eFSM_EVENT_END };
+    return util_active_object_post(active_object, &end_event);
+}
+
+void util_active_object_join(ActiveObject* active_object)
+{
+    osal_thread_join(active_object->thread);
+}
+
 void util_active_object_delete(ActiveObject* active_object)
 {
-    if(active_object != NULL)
-    {
-        osal_thread_join(active_object->thread);
-        util_queue_delete(&active_object->event_queue);
-    }
+    util_queue_delete(&active_object->event_queue);
 }

@@ -42,6 +42,22 @@ eStatus util_active_object_init(ActiveObject* active_object, uint32_t capacity, 
 eStatus util_active_object_post(ActiveObject* active_object, Event* event);
 
 /**
+ * @brief   Move to the END state of an Active Object.
+ * @param   active_object A pointer to an initialized ActiveObject struct.
+ * @returns A value from @ref eStatus.
+ * @retval  eSTATUS_SUCCESSFUL      successful execution
+ * @retval  eSTATUS_NULL_PARAM      active_object or event are NULL
+ * @retval  eSTATUS_ACTION_FAILED   thread or queue initalization failed
+ */
+eStatus util_active_object_end(ActiveObject* active_object);
+
+/**
+ * @brief   Wait for an Active Object to stop.
+ * @param   active_object A pointer to an initialized ActiveObject struct.
+ */
+void util_active_object_join(ActiveObject* active_object);
+
+/**
  * @brief   Free an Active Object.
  * @param   active_object A pointer to an initialized ActiveObject struct.
  */
