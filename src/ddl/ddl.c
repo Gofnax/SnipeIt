@@ -40,7 +40,7 @@ eStatus ddl_init(DDLFrame* frame)
     return eSTATUS_SUCCESSFUL;
 }
 
-eStatus ddl_post(eDDLModules module, Event* event)
+eStatus ddl_post(uint32_t module, Event* event)
 {
     if(module >= eDLL_MODULE_COUNT)
     {

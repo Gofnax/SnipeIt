@@ -6,7 +6,9 @@
 /* User library includes */
 #include "util/log/log.h"
 #include "hal/hal.h"
-#include "ddl/ddl.h"
+#include "app/app.h"
+
+#include "app/scheduler/scheduler_types.h"
 
 int main(void)
 {
@@ -25,22 +27,19 @@ int main(void)
         return 1;
     }
 
-    DDLFrame frame; // <-- will not remain
-    LOG_INFO("Initializing the DDL layer");
-    status = ddl_init(&frame);
+    status = app_init();
     if(status)
     {
-        LOG_ERROR("Failed to initialize the DDL layer");
+        LOG_ERROR("Failed to initialize the APP layer");
         return 1;
     }
 
-    // THIS WILL CHANGE --------------------------------------------------------
-    Event read_event = { .type = eDISTANCE_EVENT_READ };
-    ddl_post(eDDL_MODULE_DISTANCE, &read_event);
-    ddl_join();
-    ddl_delete();
-    // THIS WILL CHANGE --------------------------------------------------------
+    Event sched_start = { .type = eSCHEDULER_EVENT_START };
+    app_post(eAPP_MODULE_SCHEDULER, &sched_start);
 
+    app_join();
+
+    app_delete();
     hal_cleanup();
     log_exit();
     return 0;

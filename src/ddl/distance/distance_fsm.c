@@ -2,11 +2,12 @@
 
 /* Standard library includes */
 #include <stdbool.h>
+#include <stdint.h>
 
 /* User library includes */
+#include "ddl/distance/distance_config.h"
 #include "ddl/distance/distance_types.h"
 #include "hal/uart/hal_uart.h"
-#include "ddl/ddl_config.h"
 #include "util/log/log.h"
 #include "osal/osal.h"
 
