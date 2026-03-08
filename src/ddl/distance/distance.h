@@ -2,11 +2,11 @@
 #define DDL_DISTANCE_H
 
 /* User library includes */
-#include "ddl/distance/distance_types.h"
+#include "ddl/ddl_frame.h"
 #include "util/fsm/fsm.h"
 #include "status.h"
 
-eStatus ddl_distance_init(DistanceFrame* frame);
+eStatus ddl_distance_init(DDLFrame* frame);
 
 eStatus ddl_distance_post(Event* event);
 

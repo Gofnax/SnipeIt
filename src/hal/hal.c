@@ -6,41 +6,59 @@
 #include "uart/hal_uart.h"
 #include "i2c/hal_i2c.h"
 
+typedef enum eHALDriver
+{
+    HAL_DRIVER_GPIO,
+    HAL_DRIVER_UART,
+    HAL_DRIVER_I2C,
+    HAL_DRIVER_COUNT
+} eHALDriver;
+
+typedef struct
+{
+    eStatus (*driver_init)(void);
+    void (*driver_cleanup)(void);
+    const char* driver_name;
+} HALDriver;
+
+static HALDriver hal_drivers[HAL_DRIVER_COUNT] = {
+    [HAL_DRIVER_GPIO] = {
+        .driver_init    = hal_gpio_init,
+        .driver_cleanup = hal_gpio_cleanup,
+        .driver_name    = "GPIO"
+    },
+    [HAL_DRIVER_UART] = {
+        .driver_init    = hal_uart_init,
+        .driver_cleanup = hal_uart_cleanup,
+        .driver_name    = "UART"
+    },
+    [HAL_DRIVER_I2C] = {
+        .driver_init    = hal_i2c_init,
+        .driver_cleanup = hal_i2c_cleanup,
+        .driver_name    = "I2C"
+    }
+};
+
 eStatus hal_init(void)
 {
-    LOG_DEBUG("Initializing GPIO driver");
-    eStatus status = hal_gpio_init();
-    if(status)
+    for(int driver_index = 0; driver_index < HAL_DRIVER_COUNT; driver_index++)
     {
-        LOG_ERROR("Failed to initialize GPIO driver, status = %d", status);
-        return status;
+        LOG_DEBUG("Initializing %s driver", hal_drivers[driver_index].driver_name);
+        eStatus status = hal_drivers[driver_index].driver_init();
+        if(status)
+        {
+            return status;
+        }
     }
 
-    LOG_DEBUG("Initializing UART driver");
-    status = hal_uart_init();
-    if(status)
-    {
-        LOG_ERROR("Failed to initialize UART driver, status = %d", status);
-        return status;
-    }
-
-    LOG_DEBUG("Initializing I2C driver");
-    status = hal_i2c_init();
-    if(status)
-    {
-        LOG_ERROR("Failed to initialize I2C driver, status = %d", status);
-        return status;
-    }
-
-    return status;
+    return eSTATUS_SUCCESSFUL;
 }
 
 void hal_cleanup(void)
 {
-    LOG_DEBUG("Cleaning up GPIO driver");
-    hal_gpio_cleanup();
-    LOG_DEBUG("Cleaning up UART driver");
-    hal_uart_cleanup();
-    LOG_DEBUG("Cleaning up I2C driver");
-    hal_i2c_cleanup();
+    for(int driver_index = 0; driver_index < HAL_DRIVER_COUNT; driver_index++)
+    {
+        LOG_DEBUG("Cleaning up %s driver", hal_drivers[driver_index].driver_name);
+        hal_drivers[driver_index].driver_cleanup();
+    }
 }

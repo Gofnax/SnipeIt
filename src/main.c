@@ -5,8 +5,8 @@
 
 /* User library includes */
 #include "util/log/log.h"
-#include "ddl/distance/distance.h"
 #include "hal/hal.h"
+#include "ddl/ddl.h"
 
 int main(void)
 {
@@ -17,26 +17,28 @@ int main(void)
         return 1;
     }
 
-    LOG_DEBUG("Initializing the HAL layer");
+    LOG_INFO("Initializing the HAL layer");
     status = hal_init();
     if(status)
     {
         LOG_ERROR("Failed to initialize the HAL layer");
-    }
-
-    // THIS WILL CHANGE --------------------------------------------------------
-    DistanceFrame frame;
-    status = ddl_distance_init(&frame);
-    if(status)
-    {
-        perror("Failed to initialize the log");
         return 1;
     }
 
+    DDLFrame frame; // <-- will not remain
+    LOG_INFO("Initializing the DDL layer");
+    status = ddl_init(&frame);
+    if(status)
+    {
+        LOG_ERROR("Failed to initialize the DDL layer");
+        return 1;
+    }
+
+    // THIS WILL CHANGE --------------------------------------------------------
     Event read_event = { .type = eDISTANCE_EVENT_READ };
-    ddl_distance_post(&read_event);
-    ddl_distance_join();
-    ddl_distance_delete();
+    ddl_post(eDDL_MODULE_DISTANCE, &read_event);
+    ddl_join();
+    ddl_delete();
     // THIS WILL CHANGE --------------------------------------------------------
 
     hal_cleanup();

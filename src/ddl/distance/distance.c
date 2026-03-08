@@ -5,20 +5,20 @@
 
 /* User library includes */
 #include "util/active_object/active_object.h"
+#include "ddl/distance/distance_config.h"
 #include "ddl/distance/distance_fsm.h"
-#include "ddl/ddl_config.h"
 #include "osal/osal.h"
 
 static DistanceObject distance_aobj;
 
-eStatus ddl_distance_init(DistanceFrame* frame)
+eStatus ddl_distance_init(DDLFrame* frame)
 {
     if(frame == NULL)
     {
         return eSTATUS_NULL_PARAM;
     }
 
-    distance_aobj.frame = frame;
+    distance_aobj.frame = &frame->dist_frame;
     distance_aobj.retry = 0;
 
     return util_active_object_init(
