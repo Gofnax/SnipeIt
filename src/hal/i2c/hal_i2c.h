@@ -96,7 +96,9 @@ eStatus hal_i2c_read(uint32_t device_index, void* buffer, size_t num_bytes);
  */
 eStatus hal_i2c_read_reg(uint32_t device_index, uint16_t reg, size_t reg_len, void* buffer, size_t num_bytes);
 
-// TODO: document
+/**
+ * @brief   Cleans the I2C devices' resources.
+ */
 void hal_i2c_cleanup(void);
 
 #endif

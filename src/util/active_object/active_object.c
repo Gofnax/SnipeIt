@@ -7,7 +7,7 @@
 static void* active_entry(void* arg)
 {
     ActiveObject* active_object = (ActiveObject*)arg;
-    void*         event;
+    void* event;
 
     /* Initialize the FSM */
     (void)util_fsm_init(&active_object->active_fsm, active_object->init_state, arg);

@@ -17,17 +17,11 @@ eStatus app_scheduler_init(void)
 {
     scheduler_aobj.tick = 0;
     
-    (void)memset(
-        scheduler_aobj.subscribers,
-        0,
-        eSCHEDULER_SUBSCRIBERS_MAX * sizeof(Subscriber)
-    );
+    (void)memset(scheduler_aobj.subscribers, 0,
+        eSCHEDULER_SUBSCRIBERS_MAX * sizeof(Subscriber));
 
-    return util_active_object_init(
-        &scheduler_aobj.aobj, 
-        eSCHEDULER_QUEUE_CAPACITY, 
-        scheduler_init_state
-    );
+    return util_active_object_init(&scheduler_aobj.aobj, 
+        eSCHEDULER_QUEUE_CAPACITY, scheduler_init_state);
 }
 
 eStatus app_scheduler_subscribe(uint32_t slot, PostFP post, uint32_t module, Event* event)
@@ -48,8 +42,8 @@ eStatus app_scheduler_subscribe(uint32_t slot, PostFP post, uint32_t module, Eve
     }
 
     scheduler_aobj.subscribers[slot].module_post = post;
-    scheduler_aobj.subscribers[slot].module      = module;
-    scheduler_aobj.subscribers[slot].event       = event;
+    scheduler_aobj.subscribers[slot].module = module;
+    scheduler_aobj.subscribers[slot].event = event;
 
     return eSTATUS_SUCCESSFUL;
 }

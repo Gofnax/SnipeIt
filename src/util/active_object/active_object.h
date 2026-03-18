@@ -37,7 +37,7 @@ eStatus util_active_object_init(ActiveObject* active_object, uint32_t capacity, 
  * @returns A value from @ref eStatus.
  * @retval  eSTATUS_SUCCESSFUL      successful execution
  * @retval  eSTATUS_NULL_PARAM      active_object or event are NULL
- * @retval  eSTATUS_ACTION_FAILED   thread or queue initalization failed
+ * @retval  eSTATUS_ACTION_FAILED   thread or queue action failed
  */
 eStatus util_active_object_post(ActiveObject* active_object, Event* event);
 
@@ -46,8 +46,8 @@ eStatus util_active_object_post(ActiveObject* active_object, Event* event);
  * @param   active_object A pointer to an initialized ActiveObject struct.
  * @returns A value from @ref eStatus.
  * @retval  eSTATUS_SUCCESSFUL      successful execution
- * @retval  eSTATUS_NULL_PARAM      active_object or event are NULL
- * @retval  eSTATUS_ACTION_FAILED   thread or queue initalization failed
+ * @retval  eSTATUS_NULL_PARAM      active_object is NULL
+ * @retval  eSTATUS_ACTION_FAILED   thread or queue action failed
  */
 eStatus util_active_object_end(ActiveObject* active_object);
 

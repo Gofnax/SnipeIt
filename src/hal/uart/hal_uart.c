@@ -17,15 +17,15 @@
 #define MAX_QUEUED_OPERATIONS (eUART_MAX_QUEUED_OPERATIONS * eUART_DEVICE_COUNT)
 #define MAX_QUEUE_ENTRIES     (MAX_QUEUED_OPERATIONS * 2)
 
-typedef struct OpSlot OpSlot;
+//typedef struct OpSlot OpSlot;
 
-struct OpSlot
+typedef struct
 {
     async_cb callback;
     void*    arg;
     bool     used;
     uint8_t  padding[7];
-};
+}OpSlot;
 
 typedef struct
 {
@@ -73,11 +73,12 @@ static pthread_t       uart_thread  = 0;
 static struct io_uring uart_ring    = { 0 };
 static bool            uart_running = false;
 
+/* Allocates a slot to submit an operation to the queue used by io-uring*/
 static OpSlot* allocate_slot(UARTDevice* device)
 {
     for(int i = 0; i < eUART_MAX_QUEUED_OPERATIONS; i++) 
     {
-        if (!device->slots[i].used)
+        if (device->slots[i].used == false)
         {
             device->slots[i].used = true;
             return &device->slots[i];
@@ -109,7 +110,7 @@ static void* io_completion_thread(void* arg)
         OpSlot* slot = io_uring_cqe_get_data(cqe);
         if(slot != NULL)
         {
-            if(slot->callback != NULL && cqe->res >= 0)
+            if(slot->callback != NULL && cqe->res > 0)
             {
                slot->callback(slot->arg);
             }
@@ -228,14 +229,14 @@ eStatus hal_uart_init(void)
     return eSTATUS_SUCCESSFUL;
 }
 
-eStatus hal_uart_write(uint32_t device_index, const void* buf, uint32_t len, async_cb callback, void* arg)
+eStatus hal_uart_write(uint32_t device_index, const void* buffer, uint32_t len, async_cb callback, void* arg)
 {
     if(device_index >= eUART_DEVICE_COUNT)
     {
         return eSTATUS_INVALID_VALUE;
     }
 
-    if(buf == NULL)
+    if(buffer == NULL)
     {
         return eSTATUS_NULL_PARAM;
     }
@@ -250,7 +251,7 @@ eStatus hal_uart_write(uint32_t device_index, const void* buf, uint32_t len, asy
     }
 
     slot->callback = callback;
-    slot->arg      = arg;
+    slot->arg = arg;
 
     struct io_uring_sqe* sqe = io_uring_get_sqe(&uart_ring);
     if (sqe == NULL) 
@@ -262,10 +263,11 @@ eStatus hal_uart_write(uint32_t device_index, const void* buf, uint32_t len, asy
 
     io_uring_sqe_set_data(sqe, slot);
 
-    io_uring_prep_write(sqe, uart_devices[device_index].fd, buf, len, (uint64_t)-1);
+    io_uring_prep_write(sqe, uart_devices[device_index].fd, buffer, len, (uint64_t)-1);
 
     if(io_uring_submit(&uart_ring) < 0)
     {
+        free_slot(slot);
         (void)pthread_mutex_unlock(&uart_mutex);
         return eSTATUS_SYSTEM_ERROR;
     }
@@ -275,14 +277,14 @@ eStatus hal_uart_write(uint32_t device_index, const void* buf, uint32_t len, asy
     return eSTATUS_SUCCESSFUL;
 }
 
-eStatus hal_uart_read(uint32_t device_index, void* buf, uint32_t len, async_cb callback, void* arg)
+eStatus hal_uart_read(uint32_t device_index, void* buffer, uint32_t len, async_cb callback, void* arg)
 {
     if(device_index >= eUART_DEVICE_COUNT)
     {
         return eSTATUS_INVALID_VALUE;
     }
 
-    if(buf == NULL)
+    if(buffer == NULL)
     {
         return eSTATUS_NULL_PARAM;
     }
@@ -297,7 +299,7 @@ eStatus hal_uart_read(uint32_t device_index, void* buf, uint32_t len, async_cb c
     }
 
     slot->callback = callback;
-    slot->arg      = arg;
+    slot->arg = arg;
 
     struct io_uring_sqe* sqe = io_uring_get_sqe(&uart_ring);
     if (sqe == NULL) 
@@ -309,10 +311,11 @@ eStatus hal_uart_read(uint32_t device_index, void* buf, uint32_t len, async_cb c
 
     io_uring_sqe_set_data(sqe, slot);
 
-    io_uring_prep_read(sqe, uart_devices[device_index].fd, buf, len, (uint64_t)-1);
+    io_uring_prep_read(sqe, uart_devices[device_index].fd, buffer, len, (uint64_t)-1);
 
     if(io_uring_submit(&uart_ring) < 0)
     {
+        free_slot(slot);
         (void)pthread_mutex_unlock(&uart_mutex);
         return eSTATUS_SYSTEM_ERROR;
     }

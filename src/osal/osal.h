@@ -10,8 +10,8 @@
 
 typedef enum eTimerType
 {
-    eTIMER_TYPE_ONCE,
-    eTIMER_TYPE_REPEAT
+    eTIMER_TYPE_ONCE,       // one-time expiration
+    eTIMER_TYPE_REPEAT      // repeated intervals
 } eTimerType;
 
 /**
@@ -98,7 +98,16 @@ eStatus osal_thread_create(void** thread, EntryFP entry_func, void* arg);
  */
 void osal_thread_join(void* thread);
 
+/**
+ * @brief   Abstract microseconds delay.
+ * @param   us Number of microseconds to wait.
+ */
 void osal_delay_us(uint64_t us);
+
+/**
+ * @brief   Abstract miliseconds delay.
+ * @param   us Number of miliseconds to wait.
+ */
 void osal_delay_ms(uint64_t ms);
 
 typedef void (*TimerHandlerFP)(void* arg);
@@ -109,9 +118,44 @@ typedef struct
     void*          arg;
 } TimerArg;
 
+/**
+ * @brief   Abstract timer initialization.
+ * @param   timer A pointer to the address which will hold a timer.
+ * @param   timer_arg A pointer to a TimerArg struct.
+ * @returns A value from @ref eStatus.
+ * @retval  eSTATUS_SUCCESSFUL      successful execution
+ * @retval  eSTATUS_NULL_PARAM      timer, timer_arg or timer_arg's handler are NULL
+ * @retval  eSTATUS_SYSTEM_ERROR    system couldn't allocate memory or create the timer
+ */
 eStatus osal_timer_init(void** timer, TimerArg* timer_arg);
+
+/**
+ * @brief   Abstract timer arming.
+ * @param   timer A pointer to a timer.
+ * @param   ms The timer interval in miliseconds.
+ * @param   type A value from @ref eTimerType.
+ * @returns A value from @ref eStatus.
+ * @retval  eSTATUS_SUCCESSFUL      successful execution
+ * @retval  eSTATUS_NULL_PARAM      timer is NULL
+ * @retval  eSTATUS_INVALID_VALUE   type is not a value from @ref eTimerType
+ * @retval  eSTATUS_SYSTEM_ERROR    system couldn't configure timer interval
+ */
 eStatus osal_timer_arm(void* timer, uint64_t ms, eTimerType type);
+
+/**
+ * @brief   Abstract timer disarming.
+ * @param   timer A pointer to a timer.
+ * @returns A value from @ref eStatus.
+ * @retval  eSTATUS_SUCCESSFUL      successful execution
+ * @retval  eSTATUS_NULL_PARAM      timer is NULL
+ * @retval  eSTATUS_SYSTEM_ERROR    system couldn't configure timer interval
+ */
 eStatus osal_timer_disarm(void* timer);
+
+/**
+ * @brief   Abstract timer destroying.
+ * @param   timer A pointer to a timer.
+ */
 void osal_timer_destroy(void* timer);
 
 #endif

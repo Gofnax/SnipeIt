@@ -51,6 +51,10 @@ eStatus hal_gpio_write(uint32_t device_index, int value);
  */
 eStatus hal_gpio_set_direction(void);
 
+/**
+ * @brief   Releases the GPIO devices' resources.
+ * @details Releases the lines of each GPIO device and closes the GPIO chip.
+ */
 void hal_gpio_cleanup(void);
 
 #endif

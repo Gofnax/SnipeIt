@@ -17,12 +17,12 @@ typedef struct
 
 static APPModule app_modules[eAPP_MODULE_COUNT] = {
     [eAPP_MODULE_SCHEDULER] = {
-        .module_init   = app_scheduler_init,
-        .module_post   = app_scheduler_post,
-        .module_end    = app_scheduler_end,
-        .module_join   = app_scheduler_join,
+        .module_init = app_scheduler_init,
+        .module_post = app_scheduler_post,
+        .module_end = app_scheduler_end,
+        .module_join = app_scheduler_join,
         .module_delete = app_scheduler_delete,
-        .module_name   = "scheduler"
+        .module_name = "scheduler"
     }
 };
 

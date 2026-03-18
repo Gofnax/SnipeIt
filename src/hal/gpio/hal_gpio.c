@@ -39,7 +39,7 @@ static GPIODevice gpio_devices[eGPIO_DEVICE_COUNT] =
 };
 
 // May need future editing as we can allow in the final products for
-// some of the devices not to work as needed, and offer limited service.
+// some of the devices not to work as needed, and offer limited service (fall-back mode)
 eStatus hal_gpio_init(void)
 {
     gpio_chip = gpiod_chip_open(GPIO_CHIP_PATH);
@@ -164,6 +164,10 @@ eStatus hal_gpio_set_direction(void)
 
 void hal_gpio_cleanup(void)
 {
-    // TODO: release the gpio lines requested
-    // TODO: close the chip
+    for(uint32_t i = 0; i < eGPIO_DEVICE_COUNT; ++i)
+    {
+        gpiod_line_release(gpio_devices[i].line);
+    }
+
+    gpiod_chip_close(gpio_chip);
 }
