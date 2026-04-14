@@ -13,13 +13,10 @@
 
 typedef struct
 {
-    //eStatus (*module_post)(uint32_t module, Event* event);
     Event*          event;
     eActiveObjectID ao_id;
-    //uint32_t module;
     bool            active;
     uint8_t         reserved[3];
-    //uint32_t        padding;
 } Subscriber;
 
 typedef struct

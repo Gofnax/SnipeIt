@@ -47,6 +47,7 @@ int main(void)
     app_join();
 
     app_delete();
+    util_event_bus_delete();
     hal_cleanup();
     log_exit();
     return 0;

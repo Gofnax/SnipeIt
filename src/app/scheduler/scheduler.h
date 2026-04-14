@@ -6,8 +6,6 @@
 #include "util/fsm/fsm.h"
 #include "status.h"
 
-//typedef eStatus (*PostFP)(uint32_t module, Event* event);
-
 /**
  * @brief   Initialize the scheduler.
  * @returns A value from @ref eStatus.

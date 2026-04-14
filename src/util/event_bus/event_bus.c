@@ -112,7 +112,7 @@ eStatus util_event_bus_publish(eActiveObjectID ao_id, uint32_t event_type)
     return matched ? eSTATUS_SUCCESSFUL : eSTATUS_ACTION_FAILED;
 }
 
-void util_event_bus_destroy(void)
+void util_event_bus_delete(void)
 {
     osal_mutex_lock(bus_mutex);
 

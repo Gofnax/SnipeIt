@@ -61,6 +61,6 @@ eStatus util_event_bus_publish(eActiveObjectID ao_id, uint32_t event_type);
  * @brief   Destroy the event bus.
  * @details Deactivates all subscriptions and frees resources.
  */
-void util_event_bus_destroy(void);
+void util_event_bus_delete(void);
 
 #endif

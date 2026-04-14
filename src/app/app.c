@@ -56,7 +56,6 @@ eStatus app_init(void)
     // Can add a `ddl_subscribe()`-type of function that will go over the modules and
     // call `app_scheduler_subscribe()` for each
     status = app_scheduler_subscribe(0, eAO_DISTANCE, &distance_read_event);
-    //status = app_scheduler_subscribe(0, ddl_post, eDDL_MODULE_DISTANCE, &distance_read_event);
 
     return status;
 }
