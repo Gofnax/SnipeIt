@@ -41,6 +41,7 @@ static HALDriver hal_drivers[HAL_DRIVER_COUNT] = {
 
 eStatus hal_init(void)
 {
+    LOG_INFO("Initializing the HAL layer");
     for(int driver_index = 0; driver_index < HAL_DRIVER_COUNT; driver_index++)
     {
         LOG_DEBUG("Initializing %s driver", hal_drivers[driver_index].driver_name);

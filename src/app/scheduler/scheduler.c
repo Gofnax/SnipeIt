@@ -24,26 +24,26 @@ eStatus app_scheduler_init(void)
         eSCHEDULER_QUEUE_CAPACITY, scheduler_init_state);
 }
 
-eStatus app_scheduler_subscribe(uint32_t slot, PostFP post, uint32_t module, Event* event)
+eStatus app_scheduler_subscribe(uint32_t slot, eActiveObjectID ao_id, Event* event)
 {
     if(slot >= eSCHEDULER_SUBSCRIBERS_MAX)
     {  
         return eSTATUS_INVALID_VALUE;
     }
     
-    if(post == NULL || event == NULL)
+    if(event == NULL)
     {
         return eSTATUS_NULL_PARAM;
     }
 
-    if(scheduler_aobj.subscribers[slot].module_post != NULL)
+    if(scheduler_aobj.subscribers[slot].active)
     {
         return eSTATUS_ACTION_FAILED;
     }
 
-    scheduler_aobj.subscribers[slot].module_post = post;
-    scheduler_aobj.subscribers[slot].module = module;
+    scheduler_aobj.subscribers[slot].ao_id = ao_id;
     scheduler_aobj.subscribers[slot].event = event;
+    scheduler_aobj.subscribers[slot].active = true;
 
     return eSTATUS_SUCCESSFUL;
 }

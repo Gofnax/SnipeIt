@@ -4,11 +4,12 @@
 #include <unistd.h>
 
 /* User library includes */
+#include "util/event_bus/event_list.h"
+#include "util/event_bus/event_bus.h"
 #include "util/log/log.h"
 #include "hal/hal.h"
 #include "app/app.h"
 
-#include "app/scheduler/scheduler_types.h"
 
 int main(void)
 {
@@ -19,11 +20,17 @@ int main(void)
         return 1;
     }
 
-    LOG_INFO("Initializing the HAL layer");
     status = hal_init();
     if(status)
     {
         LOG_ERROR("Failed to initialize the HAL layer");
+        return 1;
+    }
+
+    status = util_event_bus_init();
+    if(status)
+    {
+        LOG_ERROR("Failed to initialize the event bus");
         return 1;
     }
 

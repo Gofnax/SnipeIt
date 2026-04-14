@@ -6,6 +6,7 @@
 /* User library includes */
 #include "app/scheduler/scheduler_config.h"
 #include "app/scheduler/scheduler_types.h"
+#include "util/event_bus/event_bus.h"
 #include "util/log/log.h"
 #include "osal/osal.h"
 
@@ -89,9 +90,10 @@ void scheduler_run_state(FSM* fsm, Event* event)
     switch(event->type)
     {
     case eFSM_EVENT_ENTRY:
-        LOG_DEBUG("IDLE entry");
+        LOG_DEBUG("IDLE entry. Publishing event to subscriber 0");
         (void)osal_timer_arm(aobj->timer, eSCHEDULER_TICK_MS, eTIMER_TYPE_REPEAT);
-        status = aobj->subscribers[0].module_post(aobj->subscribers[0].module, aobj->subscribers[0].event);
+        status = util_event_bus_publish(aobj->subscribers[0].ao_id, aobj->subscribers[0].event->type);
+        //status = aobj->subscribers[0].module_post(aobj->subscribers[0].module, aobj->subscribers[0].event);
         if(status)
         {
             LOG_ERROR("Scheduler failed to alert registered subscriber at slot 0");
@@ -103,9 +105,11 @@ void scheduler_run_state(FSM* fsm, Event* event)
         break;
     case eSCHEDULER_EVENT_TICK:
         aobj->tick = (aobj->tick + 1) % eSCHEDULER_SUBSCRIBERS_MAX;
-        if(aobj->subscribers[aobj->tick].module_post)
+        if(aobj->subscribers[aobj->tick].active)
         {
-            status = aobj->subscribers[aobj->tick].module_post(aobj->subscribers[aobj->tick].module, aobj->subscribers[aobj->tick].event);
+            LOG_DEBUG("Tick received. Publishing event to subscriber %d", aobj->tick);
+            status = util_event_bus_publish(aobj->subscribers[aobj->tick].ao_id, aobj->subscribers[aobj->tick].event->type);
+            //status = aobj->subscribers[aobj->tick].module_post(aobj->subscribers[aobj->tick].module, aobj->subscribers[aobj->tick].event);
             if(status)
             {
                 LOG_ERROR("Scheduler failed to alert registered subscriber at slot %u", aobj->tick);

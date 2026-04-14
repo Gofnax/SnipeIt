@@ -6,15 +6,17 @@
 
 /* User library includes */
 #include "util/event_bus/event_bus_config.h"
+#include "util/log/log.h"
 #include "osal/osal.h"
 
 typedef struct
 {
-    eActiveObjectID ao_id;
     EventBusPostFP  post_fn;
     Event*          event;
+    eActiveObjectID ao_id;
+    uint32_t        module;
     bool            active;
-    uint8_t         reserved[3];
+    uint8_t         reserved[7];
 } Subscription;
 
 static Subscription subscriptions[eEVENT_BUS_MAX_SUBSCRIPTIONS];
@@ -23,6 +25,7 @@ static void*        bus_mutex;
 
 eStatus util_event_bus_init(void)
 {
+    LOG_DEBUG("Initializing the event bus");
     subscription_count = 0;
 
     for(uint32_t i = 0; i < eEVENT_BUS_MAX_SUBSCRIPTIONS; i++)
@@ -38,7 +41,8 @@ eStatus util_event_bus_init(void)
     return eSTATUS_SUCCESSFUL;
 }
 
-eStatus util_event_bus_subscribe(eActiveObjectID ao_id, EventBusPostFP post_fn, Event* event)
+eStatus util_event_bus_subscribe(eActiveObjectID ao_id, EventBusPostFP post_fn,
+                                    uint32_t module, Event* event)
 {
     if(ao_id >= eAO_COUNT)
     {
@@ -50,6 +54,8 @@ eStatus util_event_bus_subscribe(eActiveObjectID ao_id, EventBusPostFP post_fn, 
         return eSTATUS_NULL_PARAM;
     }
 
+    LOG_DEBUG("Active object ID %d subscribed to the event bus with event %u",
+                ao_id, event->type);
     osal_mutex_lock(bus_mutex);
 
     if(subscription_count >= eEVENT_BUS_MAX_SUBSCRIPTIONS)
@@ -63,10 +69,11 @@ eStatus util_event_bus_subscribe(eActiveObjectID ao_id, EventBusPostFP post_fn, 
     {
         if(!subscriptions[i].active)
         {
-            subscriptions[i].ao_id   = ao_id;
+            subscriptions[i].ao_id = ao_id;
             subscriptions[i].post_fn = post_fn;
-            subscriptions[i].event   = event;
-            subscriptions[i].active  = true;
+            subscriptions[i].module = module;
+            subscriptions[i].event = event;
+            subscriptions[i].active = true;
             subscription_count++;
 
             osal_mutex_unlock(bus_mutex);
@@ -94,8 +101,8 @@ eStatus util_event_bus_publish(eActiveObjectID ao_id, uint32_t event_type)
         if(subscriptions[i].active && subscriptions[i].ao_id == ao_id &&
            subscriptions[i].event->type == event_type)
         {
-            /* Call the subscriber's post function with its stored event */
-            subscriptions[i].post_fn(subscriptions[i].event);
+            /* Call the subscriber's layer's post function with its stored event */
+            subscriptions[i].post_fn(subscriptions[i].module, subscriptions[i].event);
             matched = true;
         }
     }

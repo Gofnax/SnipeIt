@@ -1,6 +1,7 @@
 #include "app.h"
 
 /* User library includes */
+#include "util/event_bus/event_config.h"
 #include "scheduler/scheduler.h"
 #include "util/log/log.h"
 #include "ddl/ddl.h"
@@ -51,10 +52,11 @@ eStatus app_init(void)
 
     LOG_DEBUG("Registering modules to scheduler");
     static Event distance_read_event = { .type = eDISTANCE_EVENT_READ };
-     // TODO: hardcoded, refactor later
-     // Can add a `ddl_subscribe()`-type of function that will go over the modules and
-     // call `app_scheduler_subscribe()` for each
-    status = app_scheduler_subscribe(0, ddl_post, eDDL_MODULE_DISTANCE, &distance_read_event);
+    // TODO: hardcoded, refactor later
+    // Can add a `ddl_subscribe()`-type of function that will go over the modules and
+    // call `app_scheduler_subscribe()` for each
+    status = app_scheduler_subscribe(0, eAO_DISTANCE, &distance_read_event);
+    //status = app_scheduler_subscribe(0, ddl_post, eDDL_MODULE_DISTANCE, &distance_read_event);
 
     return status;
 }

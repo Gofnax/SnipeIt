@@ -14,7 +14,7 @@
  * @details Matches the signature of module post functions
  *          (e.g., ddl_distance_post).
  */
-typedef eStatus (*EventBusPostFP)(Event* event);
+typedef eStatus (*EventBusPostFP)(uint32_t module, Event* event);
 
 /**
  * @brief   Initialize the event bus.
@@ -31,6 +31,8 @@ eStatus util_event_bus_init(void);
  *          is published for the given Active Object module.
  * @param   ao_id The Active Object module ID from @ref eActiveObjectID.
  * @param   post_fn A function pointer to the module's post function.
+ * @param   module The index of the AO module in its layer (doesn't check for
+ *          index out-of-bouds).
  * @param   event A pointer to a static Event that will be passed to post_fn
  *          on publish. Must remain valid for the lifetime of the subscription.
  * @returns A value from @ref eStatus.
@@ -39,7 +41,8 @@ eStatus util_event_bus_init(void);
  * @retval  eSTATUS_NULL_PARAM      post_fn or event are NULL
  * @retval  eSTATUS_ACTION_FAILED   subscription table is full
  */
-eStatus util_event_bus_subscribe(eActiveObjectID ao_id, EventBusPostFP post_fn, Event* event);
+eStatus util_event_bus_subscribe(eActiveObjectID ao_id, EventBusPostFP post_fn,
+                                    uint32_t module, Event* event);
 
 /**
  * @brief   Publish an event through the bus.
