@@ -15,6 +15,7 @@ static void tick_handler(void* arg)
 {
     static Event tick_event = { .type = eSCHEDULER_EVENT_TICK };
     SchedulerObject* aobj = (SchedulerObject*)arg;
+    // Post eSCHEDULER_EVENT_TICK to itself 
     (void)util_active_object_post(&aobj->aobj, &tick_event);
 }
 

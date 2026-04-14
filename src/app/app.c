@@ -49,9 +49,12 @@ eStatus app_init(void)
         }
     }
 
-    LOG_DEBUG("Registering modules to sequencer");
+    LOG_DEBUG("Registering modules to scheduler");
     static Event distance_read_event = { .type = eDISTANCE_EVENT_READ };
-    status = app_scheduler_subscribe(0, ddl_post, eDDL_MODULE_DISTANCE, &distance_read_event); // TODO: hardcoded, refactor later
+     // TODO: hardcoded, refactor later
+     // Can add a `ddl_subscribe()`-type of function that will go over the modules and
+     // call `app_scheduler_subscribe()` for each
+    status = app_scheduler_subscribe(0, ddl_post, eDDL_MODULE_DISTANCE, &distance_read_event);
 
     return status;
 }

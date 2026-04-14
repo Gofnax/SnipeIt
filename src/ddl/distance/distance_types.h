@@ -7,14 +7,7 @@
 
 /* User library includes */
 #include "util/active_object/active_object.h"
-#include "util/fsm/fsm.h"
-
-typedef enum
-{
-    eDISTANCE_EVENT_READ = eFSM_EVENT_USER,
-    eDISTANCE_EVENT_TIMEOUT,
-    eDISTANCE_EVENT_FRAME_RECEIVED
-} eDistanceEvent;
+#include "distance_events.h"
 
 typedef struct
 {

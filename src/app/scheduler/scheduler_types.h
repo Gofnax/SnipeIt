@@ -7,14 +7,7 @@
 /* User library includes */
 #include "util/active_object/active_object.h"
 #include "app/scheduler/scheduler_config.h"
-#include "util/fsm/fsm.h"
-
-typedef enum
-{
-    eSCHEDULER_EVENT_START = eFSM_EVENT_USER,
-    eSCHEDULER_EVENT_STOP,
-    eSCHEDULER_EVENT_TICK
-} eSchedulerEvent;
+#include "scheduler_events.h"
 
 typedef struct
 {
