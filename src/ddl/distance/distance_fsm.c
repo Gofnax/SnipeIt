@@ -275,8 +275,8 @@ void distance_update_state(FSM* fsm, Event* event)
         LOG_DEBUG("UPDATE entry");
         if(is_frame_valid(&resp_frame, aobj->system_time))
         {
-            LOG_DEBUG("Frame is valid");
             update_distance_frame(aobj, &resp_frame);
+            LOG_DEBUG("Frame is valid. Distance measured: %fm", (double)aobj->frame->distance);
             (void)util_fsm_transition(fsm, distance_idle_state);
         }
         else

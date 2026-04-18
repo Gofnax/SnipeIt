@@ -42,7 +42,12 @@ int main(void)
     }
 
     Event sched_start = { .type = eSCHEDULER_EVENT_START };
-    app_post(eAPP_MODULE_SCHEDULER, &sched_start);
+    status = util_event_bus_publish(eAO_SCHEDULER, sched_start.type);
+    if(status)
+    {
+        LOG_ERROR("Failed to publish eSCHEDULER_EVENT_START");
+        return 1;
+    }
 
     app_join();
 

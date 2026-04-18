@@ -2,6 +2,8 @@
 
 /* User library includes */
 #include "util/event_bus/event_config.h"
+#include "util/event_bus/event_bus.h"
+#include "scheduler/scheduler_events.h"
 #include "scheduler/scheduler.h"
 #include "util/log/log.h"
 #include "ddl/ddl.h"
@@ -13,17 +15,21 @@ typedef struct
     eStatus (*module_end)(void);
     void (*module_join)(void);
     void (*module_delete)(void);
+    uint32_t    ao_id;
+    Event       subscribe_event;
     const char* module_name;
 } APPModule;
 
 static APPModule app_modules[eAPP_MODULE_COUNT] = {
     [eAPP_MODULE_SCHEDULER] = {
-        .module_init = app_scheduler_init,
-        .module_post = app_scheduler_post,
-        .module_end = app_scheduler_end,
-        .module_join = app_scheduler_join,
-        .module_delete = app_scheduler_delete,
-        .module_name = "scheduler"
+        .module_init        = app_scheduler_init,
+        .module_post        = app_scheduler_post,
+        .module_end         = app_scheduler_end,
+        .module_join        = app_scheduler_join,
+        .module_delete      = app_scheduler_delete,
+        .ao_id              = eAO_SCHEDULER,
+        .subscribe_event    = { .type = eSCHEDULER_EVENT_START },
+        .module_name        = "scheduler"
     }
 };
 
@@ -40,10 +46,16 @@ eStatus app_init(void)
     }
 
     LOG_INFO("Initializing the APP layer");
-    for(int module_index = 0; module_index < eAPP_MODULE_COUNT; module_index++)
+    for(uint32_t module_index = 0; module_index < eAPP_MODULE_COUNT; module_index++)
     {
         LOG_DEBUG("Initializing %s module", app_modules[module_index].module_name);
         status = app_modules[module_index].module_init();
+        if(status)
+        {
+            return status;
+        }
+        status = util_event_bus_subscribe(app_modules[module_index].ao_id, app_post,
+                                            module_index, &app_modules[module_index].subscribe_event);
         if(status)
         {
             return status;
