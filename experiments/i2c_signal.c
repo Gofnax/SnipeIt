@@ -123,11 +123,13 @@ static eStatus pca9685_read8(uint8_t reg, uint8_t* out_value)
  */
 static eStatus pca9685_set_pwm_freq(float freq_hz)
 {
-    /* Datasheet equation 1: prescale = round(osc / (4096 * f)) - 1 */
+    /* Datasheet equation 1: prescale = round(oscillator_freq / (4096 * desired_freq)) - 1 */
     float   pre_f = (PCA9685_OSC_HZ / (PCA9685_PWM_STEPS * freq_hz)) - 1.0f;
     int     pre_i = (int)(pre_f + 0.5f);
-    if (pre_i < PCA9685_PRESCALE_MIN) pre_i = PCA9685_PRESCALE_MIN;
-    if (pre_i > PCA9685_PRESCALE_MAX) pre_i = PCA9685_PRESCALE_MAX;
+    if (pre_i < PCA9685_PRESCALE_MIN)
+        pre_i = PCA9685_PRESCALE_MIN;
+    if (pre_i > PCA9685_PRESCALE_MAX)
+        pre_i = PCA9685_PRESCALE_MAX;
     uint8_t prescale = (uint8_t)pre_i;
 
     uint8_t mode1_old;
@@ -310,33 +312,42 @@ int main(void)
     }
     printf("PCA9685 initialised.\n");
 
-    /* Sweep through a handful of angles, commanding both servos together
-     * and reading back each one to confirm the chip stored what we sent. */
-    const float targets[] = { 0.0f, 45.0f, 90.0f, 135.0f, 180.0f, 90.0f };
-    const size_t num_targets = sizeof(targets) / sizeof(targets[0]);
+    float angle = 0.0f;
 
-    for (size_t i = 0; i < num_targets; i++)
+    while(angle <= 180.0f)
     {
-        float target = targets[i];
-        printf("\n--> Commanding both servos to %.1f deg\n", target);
+        printf("\n--> Commanding both servos to %.1f deg\n", angle);
 
-        if (servo_set_angle(SERVO1_CHANNEL, target) != eSTATUS_SUCCESSFUL)
+        if (servo_set_angle(SERVO1_CHANNEL, angle) != eSTATUS_SUCCESSFUL)
             fprintf(stderr, "    servo1 (ch %d) set failed\n", SERVO1_CHANNEL);
-        if (servo_set_angle(SERVO2_CHANNEL, target) != eSTATUS_SUCCESSFUL)
+        if (servo_set_angle(SERVO2_CHANNEL, angle) != eSTATUS_SUCCESSFUL)
             fprintf(stderr, "    servo2 (ch %d) set failed\n", SERVO2_CHANNEL);
 
         /* Let the servos physically swing before we check. 500 ms is plenty
          * for a 9g servo over the whole 180 deg sweep. */
-        sleep_us(1000 * 1000);
+        sleep_us(500 * 1000);
 
         float reported = 0.0f;
         if (servo_get_angle(SERVO1_CHANNEL, &reported) == eSTATUS_SUCCESSFUL)
             printf("    servo1 read-back: %.1f deg\n", reported);
         if (servo_get_angle(SERVO2_CHANNEL, &reported) == eSTATUS_SUCCESSFUL)
             printf("    servo2 read-back: %.1f deg\n", reported);
+
+        sleep_us(500 * 1000);
+        angle += 10.0f;
     }
 
-    /* Park the chip in SLEEP on the way out so the servos stop twitching. */
+    printf("Reseting servos back to 0 degrees\n");
+    if (servo_set_angle(SERVO1_CHANNEL, 0.0f) != eSTATUS_SUCCESSFUL)
+        printf("    servo1 (ch %d) set failed\n", SERVO1_CHANNEL);
+    if (servo_set_angle(SERVO2_CHANNEL, 0.0f) != eSTATUS_SUCCESSFUL)
+        printf("    servo2 (ch %d) set failed\n", SERVO2_CHANNEL);
+    printf("Done reseting servos\n");
+
+    sleep_us(500 * 1000);
+
+    /*  Park the chip in SLEEP on the way out so the servos stop twitching.
+        We can remove this line if we want the servos to keep "holding weight". */
     (void)pca9685_write8(REG_MODE1, MODE1_SLEEP | MODE1_ALLCALL);
 
     hal_i2c_cleanup();
