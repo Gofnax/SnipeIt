@@ -121,7 +121,7 @@ static bool is_frame_valid(const TOFSenseFrame *frame, uint32_t old_system_time)
 
 static void update_distance_frame(DistanceObject* aobj, const TOFSenseFrame *frame)
 {
-    /* Update The validity frame */
+    /* Update the validity frame */
     aobj->frame->valid = true;
 
     /* Calculate the distance in meters */

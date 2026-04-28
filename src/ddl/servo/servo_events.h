@@ -6,7 +6,10 @@
 
 typedef enum
 {
-    eSERVO_EVENT_SCAN = eFSM_EVENT_USER
+    eSERVO_EVENT_SCAN = eFSM_EVENT_USER,
+    eSERVO_EVENT_NOISE_DETECTED,
+    eSERVO_EVENT_LOCK,
+    eSERVO_EVENT_DIRECTIONS
 } eServoEvent;
 
 #endif
