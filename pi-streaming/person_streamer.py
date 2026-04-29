@@ -287,6 +287,7 @@ def process_session(
             if loop:
                 cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
                 frame_idx = 0
+                session_start = time.time()
                 continue
             else:
                 break
@@ -329,6 +330,11 @@ def process_session(
             elapsed = time.time() - session_start
             target = frame_idx * frame_time_sec
             sleep_s = target - elapsed
+            if frame_idx % 30 == 0:
+                drift_ms = (elapsed - target) * 1000
+                print(f"[pace] frame={frame_idx} target={target*1000:.0f}ms "
+                      f"elapsed={elapsed*1000:.0f}ms drift={drift_ms:+.0f}ms "
+                      f"sleep={sleep_s*1000:+.0f}ms", flush=True)
             if sleep_s > 0:
                 time.sleep(sleep_s)  # Sleep full amount, don't cap
 

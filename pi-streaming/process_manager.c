@@ -166,9 +166,9 @@ int pm_start_ffmpeg(ProcessManager *pm, const StreamingConfig *config)
                   "-pix_fmt", "yuv420p",        // Explicit pixel format for compatibility
                   "-g", "30",                   // Keyframe every 30 frames (~1 sec)
                   "-keyint_min", "30",          // Minimum keyframe interval
-                  "-b:v", "2M",                 // Video bitrate (some decoders need this)
-                  "-maxrate", "2M",             // Max bitrate
-                  "-bufsize", "4M",             // Buffer size
+                  "-b:v", "5M",                 // Video bitrate (some decoders need this)
+                  "-maxrate", "6M",             // Max bitrate
+                  "-bufsize", "10M",             // Buffer size
                   "-an",                        // No audio (source has none)
                   "-f", "rtsp",                 // Output format
                   "-rtsp_transport", "tcp",     // Use TCP for RTSP
@@ -188,9 +188,9 @@ int pm_start_ffmpeg(ProcessManager *pm, const StreamingConfig *config)
                   "-pix_fmt", "yuv420p",        // Explicit pixel format for compatibility
                   "-g", "30",                   // Keyframe every 30 frames (~1 sec)
                   "-keyint_min", "30",          // Minimum keyframe interval
-                  "-b:v", "2M",                 // Video bitrate (some decoders need this)
-                  "-maxrate", "2M",             // Max bitrate
-                  "-bufsize", "4M",             // Buffer size
+                  "-b:v", "5M",                 // Video bitrate (some decoders need this)
+                  "-maxrate", "6M",             // Max bitrate
+                  "-bufsize", "10M",             // Buffer size
                   "-an",                        // No audio (source has none)
                   "-f", "rtsp",                 // Output format
                   "-rtsp_transport", "tcp",     // Use TCP for RTSP
