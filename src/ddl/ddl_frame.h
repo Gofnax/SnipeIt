@@ -9,7 +9,8 @@
 // data we want to transfer to the Android application
 typedef struct
 {
-    DistanceFrame dist_frame;
+    DistanceFrame   dist_frame;
+    ServoFrame      servo_frame;
 } DDLFrame;
 
 #endif

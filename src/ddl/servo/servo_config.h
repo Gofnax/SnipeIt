@@ -26,7 +26,6 @@
  * Channel n -> base address = 0x06 + 4*n. */
 #define LEDn_BASE(channel)      (REG_LED0_ON_L + 4 * (channel))
 
-
 /* PWM refresh rate for all 16 channels. */
 #define PWM_FREQ_HZ             50.0f
 
@@ -40,7 +39,6 @@
 #define PCA9685_PRESCALE_MIN    3
 #define PCA9685_PRESCALE_MAX    255
 
-
 /* SER0049 spec: 500..2500 us pulse maps to 0..180 degrees. */
 #define SERVO_MIN_PULSE_US      500.0f
 #define SERVO_MAX_PULSE_US      2500.0f
@@ -49,6 +47,7 @@
 
 typedef enum eServoConfig
 {
+    eSERVO_QUEUE_CAPACITY = 4,
     eSERVO_PCA_ADDRESS = 0x40,
     eSERVO_CHANNEL1 = 0,
     eSERVO_CHANNEL2 = 1,

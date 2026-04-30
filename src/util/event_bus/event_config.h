@@ -9,8 +9,9 @@
  */
 typedef enum eActiveObjectID
 {
-    eAO_DISTANCE,
     eAO_SCHEDULER,
+    eAO_DISTANCE,
+    eAO_SERVO,
     eAO_COUNT
 } eActiveObjectID;
 

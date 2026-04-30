@@ -4,6 +4,7 @@
 #include "util/event_bus/event_config.h"
 #include "util/event_bus/event_bus.h"
 #include "ddl/distance/distance.h"
+#include "ddl/servo/servo.h"
 #include "util/log/log.h"
 
 typedef struct
@@ -28,6 +29,20 @@ static DDLModule ddl_modules[eDLL_MODULE_COUNT] = {
         .ao_id              = eAO_DISTANCE,
         .subscribe_event    = { .type = eDISTANCE_EVENT_READ },
         .module_name        = "distance"
+    },
+    [eDDL_MODULE_SERVO] = {
+        .module_init        = ddl_servo_init,
+        .module_post        = ddl_servo_post,
+        .module_end         = ddl_servo_end,
+        .module_join        = ddl_servo_join,
+        .module_delete      = ddl_servo_delete,
+        .ao_id              = eAO_SERVO,
+        // We might will need to expand it to subscribe with NOISE_DETECTED and LOCK
+        // events as well, so we'll need to expand the 'subscribe_event' field to
+        // be an array and add a 'subscribe_event_length' field, and then in 'ddl_init'
+        // we will need a loop to go over the array and subscribe to each
+        .subscribe_event    = { .type = eSERVO_EVENT_SCAN },
+        .module_name        = "servo"
     }
 };
 

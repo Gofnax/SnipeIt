@@ -13,26 +13,36 @@ static ServoObject servo_aobj;
 
 eStatus ddl_servo_init(DDLFrame* frame)
 {
-    eStatus status = hal_i2c_init();
-    if (status != eSTATUS_SUCCESSFUL)
-        return status;
+    if(frame == NULL)
+    {
+        return eSTATUS_NULL_PARAM;
+    }
 
-    status = hal_i2c_set_address(eSERVO_I2C_DEVICE, eSERVO_PCA_ADDRESS);
-    if (status != eSTATUS_SUCCESSFUL)
-        return status;
+    servo_aobj.frame = &frame->servo_frame;
 
-    /* MODE2: totem-pole, non-inverting, change-on-STOP */
-    status = pca9685_write8(REG_MODE2, MODE2_OUTDRV);
-    if (status != eSTATUS_SUCCESSFUL)
-        return status;
+    return util_active_object_init(
+        &servo_aobj.aobj,
+        eSERVO_QUEUE_CAPACITY,
+        servo_init_state
+    );
+}
 
-    /* MODE1: clear SLEEP so oscillator runs, keep ALLCALL for compatibility.
-     * AI and RESTART get set inside pca9685_set_pwm_freq. */
-    status = pca9685_write8(REG_MODE1, MODE1_ALLCALL);
-    if (status != eSTATUS_SUCCESSFUL)
-        return status;
+eStatus ddl_servo_post(Event* event)
+{
+    return util_active_object_post(&servo_aobj.aobj, event);
+}
 
-    sleep_us(500);
+eStatus ddl_servo_end(void)
+{
+    return util_active_object_end(&servo_aobj.aobj);
+}
 
-    return pca9685_set_pwm_freq(PWM_FREQ_HZ);
+void ddl_servo_join(void)
+{
+    util_active_object_join(&servo_aobj.aobj);
+}
+
+void ddl_servo_delete(void)
+{
+    util_active_object_delete(&servo_aobj.aobj);
 }
