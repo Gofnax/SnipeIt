@@ -64,10 +64,16 @@ eStatus app_init(void)
 
     LOG_DEBUG("Registering modules to scheduler");
     static Event distance_read_event = { .type = eDISTANCE_EVENT_READ };
+    static Event servo_directions_event = { .type = eSERVO_EVENT_DIRECTIONS };
     // TODO: hardcoded, refactor later
     // Can add a `ddl_subscribe()`-type of function that will go over the modules and
     // call `app_scheduler_subscribe()` for each
     status = app_scheduler_subscribe(0, eAO_DISTANCE, &distance_read_event);
+    if(status)
+    {
+        return status;
+    }
+    status = app_scheduler_subscribe(1, eAO_SERVO, &servo_directions_event);
 
     return status;
 }

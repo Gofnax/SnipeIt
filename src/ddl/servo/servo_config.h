@@ -45,13 +45,22 @@
 #define SERVO_MIN_ANGLE_DEG     0.0f
 #define SERVO_MAX_ANGLE_DEG     180.0f
 
+#define SERVO_STEP_ANGLE                5.0f
+#define SERVO_HORIZONTAL_MIN_ANGLE_DEG  5.0f
+#define SERVO_HORIZONTAL_MAX_ANGLE_DEG  175.0f
+#define SERVO_VERTICAL_MIN_ANGLE_DEG    0.0f
+#define SERVO_VERTICAL_MAX_ANGLE_DEG    45.0f
+
+#define SERVO_DECREASE_ANGLE    false
+#define SERVO_INCREASE_ANGLE    true
+
 typedef enum eServoConfig
 {
-    eSERVO_QUEUE_CAPACITY = 4,
-    eSERVO_PCA_ADDRESS = 0x40,
-    eSERVO_CHANNEL1 = 0,
-    eSERVO_CHANNEL2 = 1,
-    eSERVO_I2C_DEVICE = eI2C0_DEVICE
+    eSERVO_QUEUE_CAPACITY       = 4,
+    eSERVO_PCA_ADDRESS          = 0x40,
+    eSERVO_HORIZONTAL_CHANNEL   = 0,
+    eSERVO_VERTICAL_CHANNEL     = 1,
+    eSERVO_I2C_DEVICE           = eI2C0_DEVICE
 } eServoConfig;
 
 #endif

@@ -1,9 +1,10 @@
 #include "servo_fsm.h"
 
 /* Standard library includes */
-#include <stdio.h>
-#include <stdint.h>
+#include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <time.h>
 
 /* User library includes */
@@ -11,6 +12,15 @@
 #include "ddl/servo/servo_types.h"
 #include "src/hal/i2c/hal_i2c.h"
 #include "util/log/log.h"
+
+typedef struct
+{
+    float   hor_angle;
+    float   ver_angle;
+} ServoAngles;
+
+static ServoAngles servo_scan_angles;
+static bool angle_direction;
 
 static void sleep_us(long us)
 {
@@ -184,7 +194,47 @@ static eStatus servo_get_angle(uint8_t channel, float* out_angle_deg)
     return eSTATUS_SUCCESSFUL;
 }
 
+static eStatus servo_set_both_angles()
+{
+    eStatus status;
+    status = servo_set_angle(eSERVO_HORIZONTAL_CHANNEL, servo_scan_angles.hor_angle);
+    if(status)
+    {
+        return status;
+    }
+    status = servo_set_angle(eSERVO_VERTICAL_CHANNEL, servo_scan_angles.ver_angle);
+    
+    return status;
+}
 
+/* Implementing Serpantine scan */
+static void servo_scan_operation()
+{
+    if(angle_direction == SERVO_INCREASE_ANGLE && 
+        servo_scan_angles.hor_angle < SERVO_HORIZONTAL_MAX_ANGLE_DEG)
+    {
+        servo_scan_angles.hor_angle += SERVO_STEP_ANGLE;
+    }
+    else if(angle_direction == SERVO_DECREASE_ANGLE &&
+        servo_scan_angles.hor_angle > SERVO_HORIZONTAL_MIN_ANGLE_DEG)
+    {
+        servo_scan_angles.hor_angle -= SERVO_STEP_ANGLE;
+    }
+    else
+    {
+        if(servo_scan_angles.ver_angle < SERVO_VERTICAL_MAX_ANGLE_DEG)
+        {
+            servo_scan_angles.ver_angle += SERVO_STEP_ANGLE;
+            angle_direction = ~angle_direction;
+        }
+        else
+        {
+            servo_scan_angles.hor_angle = 0;
+            servo_scan_angles.ver_angle = 0;
+            angle_direction = SERVO_INCREASE_ANGLE;
+        }
+    }
+}
 
 void servo_init_state(FSM* fsm, Event* event)
 {
@@ -233,8 +283,13 @@ void servo_idle_state(FSM* fsm, Event* event)
     {
     case eFSM_EVENT_ENTRY:
         LOG_DEBUG("IDLE entry");
+        servo_scan_angles.hor_angle = 0.0f;
+        servo_scan_angles.ver_angle = 0.0f;
         aobj->frame->hor_angle = 0.0f;
         aobj->frame->ver_angle = 0.0f;
+        servo_set_angle(eSERVO_HORIZONTAL_CHANNEL, servo_scan_angles.hor_angle);
+        servo_set_angle(eSERVO_VERTICAL_CHANNEL, servo_scan_angles.ver_angle);
+        angle_direction = SERVO_INCREASE_ANGLE;
         break;
     case eSERVO_EVENT_SCAN:
         LOG_DEBUG("Scan event received");
@@ -244,8 +299,49 @@ void servo_idle_state(FSM* fsm, Event* event)
         LOG_DEBUG("IDLE exit");
         break;
     default:
-        LOG_WARNING("Unknown event type &u", event->type);
+        LOG_WARNING("Unknown event type %u", event->type);
     }
+}
+
+void servo_scan_state(FSM* fsm, Event* event)
+{
+    ServoObject* aobj = (ServoObject*)fsm->arg;
+
+    switch(event->type)
+    {
+    case eFSM_EVENT_ENTRY:
+        LOG_DEBUG("SCAN entry");
+        if(servo_set_both_angles())
+        {
+            LOG_ERROR("Failed to set servos' angles");
+        }
+        break;
+    case eSERVO_EVENT_DIRECTIONS:
+        servo_scan_operation();
+        if(servo_set_both_angles())
+        {
+            LOG_ERROR("Failed to set servos' angles");
+        }
+        break;
+    case eSERVO_EVENT_NOISE_DETECTED:
+        // TODO: fill case
+        break;
+    case eSERVO_EVENT_LOCK:
+        // TODO: fill case
+        break;
+    default:
+        LOG_WARNING("Unknown event type %u", event->type); 
+    }
+}
+
+void servo_noise_scan_state(FSM* fsm, Event* event)
+{
+    // TODO: implement state
+}
+
+void servo_target_lock_state(FSM* fsm, Event* event)
+{
+    // TODO: implement state
 }
 
 #if 0
