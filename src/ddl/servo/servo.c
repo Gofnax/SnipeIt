@@ -46,3 +46,8 @@ void ddl_servo_delete(void)
 {
     util_active_object_delete(&servo_aobj.aobj);
 }
+
+eStatus ddl_servo_set_target(float hor_angle, float ver_angle)
+{
+    return servo_fsm_set_target(hor_angle, ver_angle);
+}

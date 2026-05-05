@@ -41,7 +41,7 @@ static DDLModule ddl_modules[eDLL_MODULE_COUNT] = {
         // events as well, so we'll need to expand the 'subscribe_event' field to
         // be an array and add a 'subscribe_event_length' field, and then in 'ddl_init'
         // we will need a loop to go over the array and subscribe to each
-        .subscribe_event    = { .type = eSERVO_EVENT_SCAN },
+        .subscribe_event    = { .type = eSERVO_EVENT_DIRECTIONS },
         .module_name        = "servo"
     }
 };

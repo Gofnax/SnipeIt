@@ -56,4 +56,16 @@ void servo_noise_scan_state(FSM* fsm, Event* event);
  */
 void servo_target_lock_state(FSM* fsm, Event* event);
 
+/**
+ * @brief   Atomically update the servo target registry.
+ * @details Setting the target is seperate from publishing the event.
+ * @param   hor_angle Target horizontal angle, in degrees.
+ * @param   ver_angle Target vertical angle, in degrees.
+ * @returns A value from @ref eStatus.
+ * @retval  eSTATUS_SUCCESSFUL      successful execution
+ * @retval  eSTATUS_INVALID_VALUE   angle outside the legal range
+ * @retval  eSTATUS_ACTION_FAILED   mutex not initialized
+ */
+eStatus servo_fsm_set_target(float hor_angle, float ver_angle);
+
 #endif

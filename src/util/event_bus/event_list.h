@@ -7,8 +7,9 @@
     When adding a new AO module, include its x_events.h here.
 */
 
-#include "ddl/distance/distance_events.h"
 #include "app/scheduler/scheduler_events.h"
+#include "ddl/distance/distance_events.h"
+#include "ddl/servo/servo_events.h"
 // Add new module event headers here
 
 #endif
