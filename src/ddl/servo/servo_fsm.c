@@ -10,8 +10,9 @@
 /* User library includes */
 #include "ddl/servo/servo_config.h"
 #include "ddl/servo/servo_types.h"
-#include "src/hal/i2c/hal_i2c.h"
+#include "hal/i2c/hal_i2c.h"
 #include "util/log/log.h"
+#include "osal/osal.h"
 
 typedef struct
 {
@@ -26,7 +27,9 @@ typedef struct
     uint32_t    seq;    // identifier for fresh data between reads
 } ServoTarget;
 
-static ServoAngles servo_current_angles;
+static TimerArg timer_arg;
+
+static ServoAngles servo_scan_state_angles;
 static bool angle_direction;
 
 static ServoTarget servo_target_angles;
@@ -45,6 +48,13 @@ static float clampf(float x, float lo, float hi)
     if (x < lo) return lo;
     if (x > hi) return hi;
     return x;
+}
+
+static void timeout_handler(void* arg)
+{
+    static Event timeout_event = { .type = eSERVO_EVENT_ROTATION_TIMEOUT };
+    ServoObject* aobj = (ServoObject*)arg;
+    (void)util_active_object_post(&aobj->aobj, &timeout_event);
 }
 
 static eStatus pca9685_write8(uint8_t reg, uint8_t value)
@@ -74,7 +84,7 @@ static eStatus pca9685_set_pwm_freq(float freq_hz)
     if (status != eSTATUS_SUCCESSFUL)
         return status;
 
-    uint8_t mode1_sleep = (mode1_old & ~MODE1_RESTART) | MODE1_SLEEP;
+    uint8_t mode1_sleep = (uint8_t)((mode1_old & ~MODE1_RESTART) | MODE1_SLEEP);
     status = pca9685_write8(REG_MODE1, mode1_sleep);
     if (status != eSTATUS_SUCCESSFUL)
         return status;
@@ -131,7 +141,7 @@ static eStatus pca9685_set_pwm(uint8_t channel, uint16_t on, uint16_t off)
     data[2] = (uint8_t)(off & 0xFF);
     data[3] = (uint8_t)((off >> 8) & 0x0F);
 
-    return hal_i2c_write_reg(eSERVO_I2C_DEVICE, LEDn_BASE(channel), 1,
+    return hal_i2c_write_reg(eSERVO_I2C_DEVICE, (uint16_t)LEDn_BASE(channel), 1,
                              data, sizeof(data));
 }
 
@@ -142,7 +152,7 @@ static eStatus pca9685_get_pwm(uint8_t channel, uint16_t* out_on,
         return eSTATUS_INVALID_VALUE;
 
     uint8_t data[4] = {0};
-    eStatus status = hal_i2c_read_reg(eSERVO_I2C_DEVICE, LEDn_BASE(channel), 1,
+    eStatus status = hal_i2c_read_reg(eSERVO_I2C_DEVICE, (uint16_t)LEDn_BASE(channel), 1,
                                   data, sizeof(data));
     if (status != eSTATUS_SUCCESSFUL)
         return status;
@@ -216,8 +226,8 @@ static eStatus servo_set_both_angles(ServoObject* aobj, ServoAngles angles)
     
     if(status == eSTATUS_SUCCESSFUL)
     {
-        aobj->frame->hor_angle = servo_current_angles.hor_angle;
-        aobj->frame->ver_angle = servo_current_angles.ver_angle;
+        aobj->frame->hor_angle = angles.hor_angle;
+        aobj->frame->ver_angle = angles.ver_angle;
     }
 
     return status;
@@ -227,42 +237,48 @@ static eStatus servo_set_both_angles(ServoObject* aobj, ServoAngles angles)
 static void servo_scan_operation()
 {
     if(angle_direction == SERVO_INCREASE_ANGLE && 
-        servo_current_angles.hor_angle < SERVO_HORIZONTAL_MAX_ANGLE_DEG)
+        servo_scan_state_angles.hor_angle < SERVO_HORIZONTAL_MAX_ANGLE_DEG)
     {
-        servo_current_angles.hor_angle += SERVO_STEP_ANGLE;
+        servo_scan_state_angles.hor_angle += SERVO_STEP_ANGLE;
     }
     else if(angle_direction == SERVO_DECREASE_ANGLE &&
-        servo_current_angles.hor_angle > SERVO_HORIZONTAL_MIN_ANGLE_DEG)
+        servo_scan_state_angles.hor_angle > SERVO_HORIZONTAL_MIN_ANGLE_DEG)
     {
-        servo_current_angles.hor_angle -= SERVO_STEP_ANGLE;
+        servo_scan_state_angles.hor_angle -= SERVO_STEP_ANGLE;
     }
     else
     {
-        if(servo_current_angles.ver_angle < SERVO_VERTICAL_MAX_ANGLE_DEG)
+        if(servo_scan_state_angles.ver_angle < SERVO_VERTICAL_MAX_ANGLE_DEG)
         {
-            servo_current_angles.ver_angle += SERVO_STEP_ANGLE;
-            angle_direction = ~angle_direction;
+            servo_scan_state_angles.ver_angle += SERVO_STEP_ANGLE;
+            angle_direction = !angle_direction;
         }
         else
         {
-            servo_current_angles.hor_angle = 0;
-            servo_current_angles.ver_angle = 0;
+            servo_scan_state_angles.hor_angle = SERVO_HORIZONTAL_MIN_ANGLE_DEG;
+            servo_scan_state_angles.ver_angle = SERVO_VERTICAL_MIN_ANGLE_DEG;
             angle_direction = SERVO_INCREASE_ANGLE;
         }
     }
 }
 
 /* An internal initialization function for the angles saved */
-static void servo_init_angles()
+static eStatus servo_init_angles()
 {
+    eStatus status;
     servo_target_angles.angles.hor_angle = 0.0f;
     servo_target_angles.angles.ver_angle = 90.f;
     servo_target_angles.seq = 0;
-    servo_current_angles.hor_angle = 0.0f;
-    servo_current_angles.ver_angle = 90.0f;
-    servo_set_angle(eSERVO_HORIZONTAL_CHANNEL, servo_current_angles.hor_angle);
-    servo_set_angle(eSERVO_VERTICAL_CHANNEL, servo_current_angles.ver_angle);
+    servo_scan_state_angles.hor_angle = 0.0f;
+    servo_scan_state_angles.ver_angle = 90.0f;
     angle_direction = SERVO_INCREASE_ANGLE;
+    status = servo_set_angle(eSERVO_HORIZONTAL_CHANNEL, servo_scan_state_angles.hor_angle);
+    if(status)
+    {
+        return status;
+    }
+    status = servo_set_angle(eSERVO_VERTICAL_CHANNEL, servo_scan_state_angles.ver_angle);
+    return status;
 }
 
 /* Create a copy of the target angles so the FSM can act on the target without
@@ -272,6 +288,15 @@ static void servo_copy_target(ServoTarget* out)
     osal_mutex_lock(servo_target_mutex);
     *out = servo_target_angles;
     osal_mutex_unlock(servo_target_mutex);
+}
+
+void servo_fsm_destroy()
+{
+    if(servo_target_mutex != NULL)
+    {
+        osal_mutex_destroy(servo_target_mutex);
+        servo_target_mutex = NULL;
+    }
 }
 
 /* Public setter. Caller must follow this with `util_event_bus_publish()` with
@@ -308,7 +333,10 @@ void servo_init_state(FSM* fsm, Event* event)
     {
     case eFSM_EVENT_INIT:
         LOG_DEBUG("INIT entry");
-        if(pca9685_init() || osal_mutex_init(&servo_target_mutex))
+        timer_arg.handler = timeout_handler;
+        timer_arg.arg = aobj;
+        if(pca9685_init() || osal_mutex_init(&servo_target_mutex) ||
+            osal_timer_init(&aobj->timer, &timer_arg))
         {
             (void)util_fsm_transition(fsm, servo_error_state);
         }
@@ -321,23 +349,19 @@ void servo_init_state(FSM* fsm, Event* event)
         LOG_DEBUG("INIT exit");
         break;
     default:
-        LOG_WARNING("Unknown event type &u", event->type);
+        LOG_WARNING("Unknown event type %u", event->type);
     }
 }
 
 void servo_error_state(FSM* fsm, Event* event)
 {
     ServoObject* aobj = (ServoObject*)fsm->arg;
+    (void)aobj;
 
     switch(event->type)
     {
     case eFSM_EVENT_ENTRY:
         LOG_ERROR("ERROR entry");
-        if(servo_target_mutex != NULL)
-        {
-            osal_mutex_destroy(&servo_target_mutex);
-            servo_target_mutex = NULL;
-        }
         break;
     default:
         LOG_WARNING("Unknown event type %u", event->type);
@@ -352,9 +376,15 @@ void servo_idle_state(FSM* fsm, Event* event)
     {
     case eFSM_EVENT_ENTRY:
         LOG_DEBUG("IDLE entry");
-        servo_init_angles();
-        aobj->frame->hor_angle = 0.0f;
-        aobj->frame->ver_angle = 90.0f;
+        if(servo_init_angles())
+        {
+            LOG_ERROR("Failed to set servos' angles");
+        }
+        else
+        {
+            aobj->frame->hor_angle = servo_scan_state_angles.hor_angle;
+            aobj->frame->ver_angle = servo_scan_state_angles.ver_angle;
+        }
         break;
     case eSERVO_EVENT_SCAN:
         LOG_DEBUG("Scan event received");
@@ -376,7 +406,7 @@ void servo_scan_state(FSM* fsm, Event* event)
     {
     case eFSM_EVENT_ENTRY:
         LOG_DEBUG("SCAN entry");
-        if(servo_set_both_angles(aobj, servo_current_angles))
+        if(servo_set_both_angles(aobj, servo_scan_state_angles))
         {
             LOG_ERROR("Failed to set servos' angles");
         }
@@ -384,11 +414,11 @@ void servo_scan_state(FSM* fsm, Event* event)
     case eSERVO_EVENT_DIRECTIONS:
         LOG_DEBUG("Directions event received");
         servo_scan_operation();
-        if(servo_set_both_angles(aobj, servo_current_angles))
+        if(servo_set_both_angles(aobj, servo_scan_state_angles))
         {
             LOG_ERROR("Failed to set servos' angles");
-            (void)servo_get_angle(eSERVO_HORIZONTAL_CHANNEL, &servo_current_angles.hor_angle);
-            (void)servo_get_angle(eSERVO_VERTICAL_CHANNEL, &servo_current_angles.ver_angle);
+            (void)servo_get_angle(eSERVO_HORIZONTAL_CHANNEL, &servo_scan_state_angles.hor_angle);
+            (void)servo_get_angle(eSERVO_VERTICAL_CHANNEL, &servo_scan_state_angles.ver_angle);
         }
         break;
     case eSERVO_EVENT_NOISE_DETECTED:
@@ -407,7 +437,6 @@ void servo_scan_state(FSM* fsm, Event* event)
 void servo_noise_scan_state(FSM* fsm, Event* event)
 {
     ServoObject* aobj = (ServoObject*)fsm->arg;
-    static uint32_t last_seq;
     ServoTarget target_copy;
 
     switch(event->type)
@@ -415,32 +444,29 @@ void servo_noise_scan_state(FSM* fsm, Event* event)
     case eFSM_EVENT_ENTRY:
         LOG_DEBUG("NOISE_SCAN entry");
         servo_copy_target(&target_copy);
-        last_seq = target_copy.seq;
+        servo_scan_state_angles = target_copy.angles;
         if(servo_set_both_angles(aobj, target_copy.angles))
         {
             LOG_ERROR("Failed to set servos' angles");
         }
+        (void)osal_timer_arm(aobj->timer, SERVO_MAX_ROTATION_DURATION_MS, eTIMER_TYPE_ONCE);
         break;
-    /* In this state we only rotate the servos and return to normal scan.
-     * In the DIRECTIONS event, we check to see if the servos rotated to 
-     * the target's angles. If so, we transition to scan_state. If no, 
-     * we wait for them to rotate. */
     case eSERVO_EVENT_DIRECTIONS:
-        LOG_DEBUG("Directions event received");
-        servo_copy_target(&target_copy);
-        if(last_seq == target_copy.seq)
-        {
-            float curr_hor_angle = 0.0f, curr_ver_angle = 0.0f;
-            if(servo_get_angle(eSERVO_HORIZONTAL_CHANNEL, &curr_hor_angle) != target_copy.angles.hor_angle ||
-               servo_get_angle(eSERVO_HORIZONTAL_CHANNEL, &curr_ver_angle) != target_copy.angles.ver_angle)
-            {
-                break;  // we wait, hoping in the next call the servos finished rotating
-            }
-        }
+        // Nothing to do in with this event. We wait on eSERVO_EVENT_ROTATION_TIMEOUT
+        // to assure the servos finished rotating.
+        break;
+    case eSERVO_EVENT_ROTATION_TIMEOUT:
+        LOG_DEBUG("Rotation timeout event received");
         (void)util_fsm_transition(fsm, servo_scan_state);
         break;
+    case eSERVO_EVENT_NOISE_DETECTED:
+        LOG_DEBUG("Noise-detected event received");
+        // For now we don't handle this event from this state.
+        // May change later.
+        break;
     case eFSM_EVENT_EXIT:
-        LOG_DEBUG("NOISE_SCAN entry");
+        LOG_DEBUG("NOISE_SCAN exit");
+        (void)osal_timer_disarm(aobj->timer);
         break;
     default:
         LOG_WARNING("Unknown event type %u", event->type); 

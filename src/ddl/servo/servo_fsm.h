@@ -68,4 +68,10 @@ void servo_target_lock_state(FSM* fsm, Event* event);
  */
 eStatus servo_fsm_set_target(float hor_angle, float ver_angle);
 
+/**
+ * @brief   Releases the servo's FSM resources.
+ * @details For now it only destroys a mutex used by the FSM.
+ */
+void servo_fsm_destroy();
+
 #endif

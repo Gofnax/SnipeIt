@@ -15,6 +15,7 @@ typedef struct
 {
     ActiveObject    aobj;
     ServoFrame*     frame;
+    void*           timer;
 } ServoObject;
 
 

@@ -45,6 +45,8 @@ void ddl_servo_join(void)
 void ddl_servo_delete(void)
 {
     util_active_object_delete(&servo_aobj.aobj);
+    osal_timer_destroy(servo_aobj.timer);
+    servo_fsm_destroy();
 }
 
 eStatus ddl_servo_set_target(float hor_angle, float ver_angle)
