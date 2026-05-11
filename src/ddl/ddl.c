@@ -15,34 +15,46 @@ typedef struct
     void (*module_join)(void);
     void (*module_delete)(void);
     uint32_t    ao_id;
-    Event       subscribe_event;
+    uint32_t    subscribe_events_count;
+    Event*      subscribe_events;
     const char* module_name;
 } DDLModule;
 
+static Event distance_subscribe_events[] = {
+    { . type = eDISTANCE_EVENT_READ }
+};
+
+static Event servo_subscribe_events[] = {
+    { .type = eSERVO_EVENT_SCAN },
+    { .type = eSERVO_EVENT_DIRECTIONS },
+    { .type = eSERVO_EVENT_NOISE_DETECTED },
+    { .type = eSERVO_EVENT_LOCK }
+};
+
 static DDLModule ddl_modules[eDLL_MODULE_COUNT] = {
     [eDDL_MODULE_DISTANCE] = {
-        .module_init        = ddl_distance_init,
-        .module_post        = ddl_distance_post,
-        .module_end         = ddl_distance_end,
-        .module_join        = ddl_distance_join,
-        .module_delete      = ddl_distance_delete,
-        .ao_id              = eAO_DISTANCE,
-        .subscribe_event    = { .type = eDISTANCE_EVENT_READ },
-        .module_name        = "distance"
+        .module_init            = ddl_distance_init,
+        .module_post            = ddl_distance_post,
+        .module_end             = ddl_distance_end,
+        .module_join            = ddl_distance_join,
+        .module_delete          = ddl_distance_delete,
+        .ao_id                  = eAO_DISTANCE,
+        .subscribe_events_count = sizeof(distance_subscribe_events) / 
+                                    sizeof(distance_subscribe_events[0]),
+        .subscribe_events       = distance_subscribe_events,
+        .module_name            = "distance"
     },
     [eDDL_MODULE_SERVO] = {
-        .module_init        = ddl_servo_init,
-        .module_post        = ddl_servo_post,
-        .module_end         = ddl_servo_end,
-        .module_join        = ddl_servo_join,
-        .module_delete      = ddl_servo_delete,
-        .ao_id              = eAO_SERVO,
-        // We might will need to expand it to subscribe with NOISE_DETECTED and LOCK
-        // events as well, so we'll need to expand the 'subscribe_event' field to
-        // be an array and add a 'subscribe_event_length' field, and then in 'ddl_init'
-        // we will need a loop to go over the array and subscribe to each
-        .subscribe_event    = { .type = eSERVO_EVENT_DIRECTIONS },
-        .module_name        = "servo"
+        .module_init            = ddl_servo_init,
+        .module_post            = ddl_servo_post,
+        .module_end             = ddl_servo_end,
+        .module_join            = ddl_servo_join,
+        .module_delete          = ddl_servo_delete,
+        .ao_id                  = eAO_SERVO,
+        .subscribe_events_count = sizeof(servo_subscribe_events) /
+                                    sizeof(servo_subscribe_events[0]),
+        .subscribe_events       = servo_subscribe_events,
+        .module_name            = "servo"
     }
 };
 
@@ -50,17 +62,21 @@ eStatus ddl_init(DDLFrame* frame)
 {
     for(uint32_t module_index = 0; module_index < eDLL_MODULE_COUNT; module_index++)
     {
-        LOG_DEBUG("Initializing %s module", ddl_modules[module_index].module_name);
-        eStatus status = ddl_modules[module_index].module_init(frame);
+        DDLModule* module = &ddl_modules[module_index];
+        LOG_DEBUG("Initializing %s module", module->module_name);
+        eStatus status = module->module_init(frame);
         if(status)
         {
             return status;
         }
-        status = util_event_bus_subscribe(ddl_modules[module_index].ao_id, ddl_post,
-                                            module_index, &ddl_modules[module_index].subscribe_event);
-        if(status)
+        for(uint32_t i = 0; i < module->subscribe_events_count; i++)
         {
-            return status;
+            status = util_event_bus_subscribe(module->ao_id, ddl_post, module_index,
+                                                &module->subscribe_events[i]);
+            if(status)
+            {
+                return status;
+            }
         }
     }
 

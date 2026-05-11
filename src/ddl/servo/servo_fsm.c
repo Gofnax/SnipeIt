@@ -386,7 +386,10 @@ void servo_idle_state(FSM* fsm, Event* event)
             aobj->frame->ver_angle = servo_scan_state_angles.ver_angle;
         }
         break;
-    case eSERVO_EVENT_SCAN:
+    // Logically it should be on SCAN event, but this is the events
+    // the scheduler publishes repeatedly, and there is no reason
+    // to subscribing to the scheduler with another event
+    case eSERVO_EVENT_DIRECTIONS:   
         LOG_DEBUG("Scan event received");
         (void)util_fsm_transition(fsm, servo_scan_state);
         break;
