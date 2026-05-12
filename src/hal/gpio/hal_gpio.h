@@ -47,9 +47,17 @@ eStatus hal_gpio_read(uint32_t device_index, int* buffer);
 eStatus hal_gpio_write(uint32_t device_index, int value);
 
 /**
- * @brief   Does nothing. To be implemented later
+ * @brief   Change the direction of an already-initialized GPIO line at runtime.
+ * @details Lets a single physical pin act alternately as output (driven) and
+ *          input (released, sampled).
+ * @param   device_index A value from @ref eGPIODeviceNumber.
+ * @param   direction    A value from @ref eGPIODirection.
+ * @returns A value from @ref eStatus.
+ * @retval  eSTATUS_SUCCESSFUL    successful execution
+ * @retval  eSTATUS_INVALID_VALUE device or direction out of range
+ * @retval  eSTATUS_DEVICE_ERROR  underlying gpiod call failed
  */
-eStatus hal_gpio_set_direction(void);
+eStatus hal_gpio_set_direction(uint32_t device_index, eGPIODirection direction);
 
 /**
  * @brief   Releases the GPIO devices' resources.

@@ -156,10 +156,35 @@ eStatus hal_gpio_write(uint32_t device_index, int value)
     return eSTATUS_SUCCESSFUL;
 }
 
-// TO-DO implementation
-eStatus hal_gpio_set_direction(void)
+eStatus hal_gpio_set_direction(uint32_t device_index, eGPIODirection direction)
 {
-    return 0;
+    if(device_index >= eGPIO_DEVICE_COUNT)
+    {
+        return eSTATUS_INVALID_VALUE;
+    }
+
+    int status;
+
+    switch(direction)
+    {
+    case eGPIO_INPUT:
+        status = gpiod_line_set_direction_input(gpio_devices[device_index].line);
+        break;
+    case eGPIO_OUTPUT:
+        /* Initial driven value is 0. Caller can hal_gpio_write to 1 after. */
+        status = gpiod_line_set_direction_output(gpio_devices[device_index].line, 0);
+        break;
+    default:
+        return eSTATUS_INVALID_VALUE;
+    }
+
+    if(status < 0)
+    {
+        return eSTATUS_DEVICE_ERROR;
+    }
+
+    gpio_devices[device_index].direction = (uint8_t)direction;
+    return eSTATUS_SUCCESSFUL;
 }
 
 void hal_gpio_cleanup(void)
