@@ -13,6 +13,17 @@
 #include "util/log/log.h"
 #include "osal/osal.h"
 
+typedef struct
+{
+    uint8_t humidity_hi;
+    uint8_t humidity_lo;
+    uint8_t temperature_hi;
+    uint8_t temperature_lo;
+    uint8_t parity;
+} TempHumFrame;
+
+static TempHumFrame resp_frame;
+
 static uint64_t am2302_get_time_us(void)
 {
     struct timespec ts;
@@ -56,7 +67,7 @@ static eStatus am2302_wait_for_level(int target_level, uint64_t timeout_us,
 
 /* Drive the line low for AM2302_START_SIGNAL_HOLD_MS, then release.
  * Leaves the line as INPUT on return. */
-static eStatus am2302_send_start_signal(void)
+static eStatus am2302_send_read_request(void)
 {
     eStatus status;
 
@@ -155,14 +166,15 @@ static eStatus am2302_read_frame(uint8_t bytes_out[AM2302_BYTE_COUNT])
     return eSTATUS_SUCCESSFUL;
 }
 
-static bool am2302_parity_check(const uint8_t bytes[AM2302_BYTE_COUNT])
+static bool am2302_parity_check(const TempHumFrame* frame)
 {
     /* parity = (humidity_hi + humidity_lo + temp_hi + temp_lo)'s low 8 bits. */
-    uint8_t sum = (uint8_t)(bytes[0] + bytes[1] + bytes[2] + bytes[3]);
-    return sum == bytes[4];
+    uint8_t sum = (uint8_t)(frame->humidity_hi + frame->humidity_lo +
+                            frame->temperature_hi + frame->temperature_lo);
+    return sum == frame->parity;
 }
 
-static void am2302_decode_frame(const uint8_t bytes[AM2302_BYTE_COUNT],
+static void am2302_decode_frame(const TempHumFrame* frame,
                                 float* out_humidity_pct, float* out_temperature_c)
 {
     /* Humidity: 16-bit unsigned, value is 10× the actual %RH. */
@@ -190,7 +202,7 @@ static eStatus am2302_init(void)
 }
 
 /* Perform one read transaction and return decoded values.
- * Caller is responsible for spacing reads ≥ AM2302_MIN_READ_INTERVAL_MS
+ * Caller is responsible for spacing reads at least AM2302_MIN_READ_INTERVAL_MS
  * apart. Returns eSTATUS_ACTION_FAILED on protocol timeout/checksum,
  * eSTATUS_DEVICE_ERROR on HAL failure. Retry on the caller's side. */
 static eStatus am2302_read(float* out_humidity_pct, float* out_temperature_c)
@@ -200,7 +212,7 @@ static eStatus am2302_read(float* out_humidity_pct, float* out_temperature_c)
         return eSTATUS_NULL_PARAM;
     }
 
-    eStatus status = am2302_send_start_signal();
+    eStatus status = am2302_send_read_request();
     if(status != eSTATUS_SUCCESSFUL)
     {
         return status;
