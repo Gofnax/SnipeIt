@@ -57,7 +57,7 @@ eStatus hal_gpio_write(uint32_t device_index, int value);
  * @retval  eSTATUS_INVALID_VALUE device or direction out of range
  * @retval  eSTATUS_DEVICE_ERROR  underlying gpiod call failed
  */
-eStatus hal_gpio_set_direction(uint32_t device_index, eGPIODirection direction);
+eStatus hal_gpio_set_direction(uint32_t device_index, uint32_t direction);
 
 /**
  * @brief   Releases the GPIO devices' resources.

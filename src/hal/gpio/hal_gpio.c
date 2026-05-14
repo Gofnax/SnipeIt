@@ -156,7 +156,7 @@ eStatus hal_gpio_write(uint32_t device_index, int value)
     return eSTATUS_SUCCESSFUL;
 }
 
-eStatus hal_gpio_set_direction(uint32_t device_index, eGPIODirection direction)
+eStatus hal_gpio_set_direction(uint32_t device_index, uint32_t direction)
 {
     if(device_index >= eGPIO_DEVICE_COUNT)
     {

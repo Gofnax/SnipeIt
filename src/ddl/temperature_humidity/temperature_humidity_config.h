@@ -31,10 +31,10 @@
 #define AM2302_BIT_COUNT                40
 #define AM2302_BYTE_COUNT               5
 
-typedef enum eAmbientConfig
+typedef enum eTemperatureHumidityConfig
 {
-    eAMBIENT_QUEUE_CAPACITY = 4,
-    eAMBIENT_GPIO_DEVICE    = eGPIO0_DEVICE
-} eAmbientConfig;
+    eTEMPERATURE_HUMIDITY_QUEUE_CAPACITY = 4,
+    eTEMPERATURE_HUMIDITY_GPIO_DEVICE    = eGPIO0_DEVICE
+} eTemperatureHumidityConfig;
 
 #endif

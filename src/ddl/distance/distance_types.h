@@ -11,12 +11,12 @@
 
 typedef struct
 {
-    bool     valid;
-    uint8_t  reserved[3];
-    float    distance;
-    uint8_t  status;
-    uint8_t  precision;
-    uint16_t strength;
+    bool        valid;
+    uint8_t     reserved[3];
+    float       distance;
+    uint8_t     status;
+    uint8_t     precision;
+    uint16_t    strength;
 } DistanceFrame;
 
 typedef struct

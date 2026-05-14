@@ -12,6 +12,17 @@
 typedef struct
 {
     bool    valid;
+    uint8_t reserved[3];
+    float   humidity;
+    float   temperature;
 } TemperatureHumidityFrame;
+
+typedef struct 
+{
+    ActiveObject                aobj;
+    TemperatureHumidityFrame*   frame;
+    uint32_t                    retry;
+    uint32_t                    reserved;
+} TemperatureHumidityObject;
 
 #endif

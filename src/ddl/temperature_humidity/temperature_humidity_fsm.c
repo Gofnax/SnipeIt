@@ -8,6 +8,7 @@
 
 /* User library includes */
 #include "ddl/temperature_humidity/temperature_humidity_config.h"
+#include "ddl/temperature_humidity/temperature_humidity_types.h"
 #include "hal/gpio/hal_gpio_config.h"
 #include "hal/gpio/hal_gpio.h"
 #include "util/log/log.h"
@@ -43,7 +44,7 @@ static eStatus am2302_wait_for_level(int target_level, uint64_t timeout_us,
 
     while(true)
     {
-        eStatus status = hal_gpio_read(eAMBIENT_GPIO_DEVICE, &level);
+        eStatus status = hal_gpio_read(eTEMPERATURE_HUMIDITY_GPIO_DEVICE, &level);
         if(status != eSTATUS_SUCCESSFUL)
         {
             return eSTATUS_DEVICE_ERROR;
@@ -73,7 +74,7 @@ static eStatus am2302_send_read_request(void)
 
     /* Drive low. set_direction(OUTPUT) initialises the driven value to 0,
      * so this single call is the start of the low pulse. */
-    status = hal_gpio_set_direction(eAMBIENT_GPIO_DEVICE, eGPIO_OUTPUT);
+    status = hal_gpio_set_direction(eTEMPERATURE_HUMIDITY_GPIO_DEVICE, eGPIO_OUTPUT);
     if(status != eSTATUS_SUCCESSFUL)
     {
         return status;
@@ -83,7 +84,7 @@ static eStatus am2302_send_read_request(void)
 
     /* Release the bus. The external pull-up pulls the line back high
      * within a few microseconds; the sensor then takes over within Tgo. */
-    return hal_gpio_set_direction(eAMBIENT_GPIO_DEVICE, eGPIO_INPUT);
+    return hal_gpio_set_direction(eTEMPERATURE_HUMIDITY_GPIO_DEVICE, eGPIO_INPUT);
 }
 
 /* Wait through the sensor's 80 µs low + 80 µs high response.
@@ -145,11 +146,13 @@ static eStatus am2302_read_bit(uint8_t* out_bit)
     return eSTATUS_SUCCESSFUL;
 }
 
-static eStatus am2302_read_frame(uint8_t bytes_out[AM2302_BYTE_COUNT])
+static eStatus am2302_read_frame(TempHumFrame* frame)
 {
+    uint8_t* frame_bytes = (uint8_t*)frame;
+
     for(uint32_t i = 0; i < AM2302_BYTE_COUNT; i++)
     {
-        bytes_out[i] = 0;
+        frame_bytes[i] = 0;
     }
 
     for(uint32_t i = 0; i < AM2302_BIT_COUNT; i++)
@@ -161,7 +164,7 @@ static eStatus am2302_read_frame(uint8_t bytes_out[AM2302_BYTE_COUNT])
             LOG_WARNING("AM2302 bit %u read failed", i);
             return status;
         }
-        bytes_out[i / 8] = (uint8_t)((bytes_out[i / 8] << 1) | bit);
+        frame_bytes[i / 8] = (uint8_t)((frame_bytes[i / 8] << 1) | bit);
     }
     return eSTATUS_SUCCESSFUL;
 }
@@ -174,21 +177,22 @@ static bool am2302_parity_check(const TempHumFrame* frame)
     return sum == frame->parity;
 }
 
-static void am2302_decode_frame(const TempHumFrame* frame,
-                                float* out_humidity_pct, float* out_temperature_c)
+static void am2302_decode_frame(TemperatureHumidityObject* aobj, const TempHumFrame* frame)
 {
     /* Humidity: 16-bit unsigned, value is 10× the actual %RH. */
-    uint16_t raw_humidity = (uint16_t)(((uint16_t)bytes[0] << 8) | bytes[1]);
-    *out_humidity_pct = (float)raw_humidity / 10.0f;
+    uint16_t raw_humidity = (uint16_t)(((uint16_t)frame->humidity_hi << 8) | 
+                                        frame->humidity_lo);
+    aobj->frame->humidity = (float)raw_humidity / 10.0f;
 
     /* Temperature: sign-magnitude (NOT two's complement). Bit 15 = sign,
-     * bits 14..0 = magnitude in 0.1 °C units. See datasheet §7.2
-     * "Special Instructions" — -10.1 °C is encoded as 0x8065, not 0xFF9B. */
-    uint16_t raw_temp  = (uint16_t)(((uint16_t)bytes[2] << 8) | bytes[3]);
-    bool     negative  = (raw_temp & 0x8000u) != 0u;
+     * bits 14..0 = magnitude in 0.1 °C units. In the datasheet under
+     * "Special Instructions" we see -10.1 °C is encoded as 0x8065, not 0xFF9B. */
+    uint16_t raw_temp  = (uint16_t)(((uint16_t)frame->temperature_hi << 8) | 
+                                        frame->temperature_lo);
+    bool negative = (raw_temp & 0x8000u) != 0u;
     uint16_t magnitude = raw_temp & 0x7FFFu;
-    float    temp_c    = (float)magnitude / 10.0f;
-    *out_temperature_c = negative ? -temp_c : temp_c;
+    float temp_c = (float)magnitude / 10.0f;
+    aobj->frame->temperature = negative ? -temp_c : temp_c;
 }
 
 /* Place the line in its idle state. Call once at module start-up.
@@ -198,16 +202,16 @@ static void am2302_decode_frame(const TempHumFrame* frame,
  * or by arming a 2 s timer before transitioning to a read state. */
 static eStatus am2302_init(void)
 {
-    return hal_gpio_set_direction(eAMBIENT_GPIO_DEVICE, eGPIO_INPUT);
+    return hal_gpio_set_direction(eTEMPERATURE_HUMIDITY_GPIO_DEVICE, eGPIO_INPUT);
 }
 
 /* Perform one read transaction and return decoded values.
  * Caller is responsible for spacing reads at least AM2302_MIN_READ_INTERVAL_MS
  * apart. Returns eSTATUS_ACTION_FAILED on protocol timeout/checksum,
  * eSTATUS_DEVICE_ERROR on HAL failure. Retry on the caller's side. */
-static eStatus am2302_read(float* out_humidity_pct, float* out_temperature_c)
+static eStatus am2302_read(TemperatureHumidityObject* aobj)
 {
-    if(out_humidity_pct == NULL || out_temperature_c == NULL)
+    if(aobj == NULL)
     {
         return eSTATUS_NULL_PARAM;
     }
@@ -223,31 +227,84 @@ static eStatus am2302_read(float* out_humidity_pct, float* out_temperature_c)
     {
         return status;
     }
-
-    uint8_t bytes[AM2302_BYTE_COUNT];
-    status = am2302_read_frame(bytes);
+    
+    status = am2302_read_frame(&resp_frame);
     if(status != eSTATUS_SUCCESSFUL)
     {
         return status;
     }
 
-    if(!am2302_parity_check(bytes))
+    if(!am2302_parity_check(&resp_frame))
     {
-        LOG_WARNING("AM2302 checksum mismatch: "
-                    "%02X+%02X+%02X+%02X != %02X",
-                    bytes[0], bytes[1], bytes[2], bytes[3], bytes[4]);
+        LOG_WARNING("AM2302 checksum mismatch: %02X+%02X+%02X+%02X != %02X",
+                    resp_frame.humidity_hi, resp_frame.humidity_lo,
+                    resp_frame.temperature_hi, resp_frame.temperature_lo,
+                    resp_frame.parity);
         return eSTATUS_ACTION_FAILED;
     }
 
-    am2302_decode_frame(bytes, out_humidity_pct, out_temperature_c);
+    am2302_decode_frame(aobj, &resp_frame);
     LOG_DEBUG("AM2302 read OK: humidity=%.1f%%RH temperature=%.1fC",
-              (double)*out_humidity_pct, (double)*out_temperature_c);
+              (double)aobj->frame->humidity, (double)aobj->frame->temperature);
     return eSTATUS_SUCCESSFUL;
 }
 
-/* ============================================================
- * FSM state functions go below this line when the module is
- * built out — same pattern as distance_fsm.c (init / error /
- * idle / read / update). They call am2302_init() on entry to
- * INIT and am2302_read() inside the READ state's entry handler.
- * ============================================================ */
+void temperature_humidity_init_state(FSM* fsm, Event* event)
+{
+    //TemperatureHumidityObject* aobj = (TemperatureHumidityObject*)fsm->arg;
+
+    switch(event->type)
+    {
+    case eFSM_EVENT_INIT:
+        LOG_DEBUG("INIT entry");
+        if(am2302_init())
+        {
+            (void)util_fsm_transition(fsm, temperature_humidity_error_state);
+        }
+        else
+        {
+            (void)util_fsm_transition(fsm, temperature_humidity_idle_state);
+        }
+        break;
+    case eFSM_EVENT_EXIT:
+        LOG_DEBUG("INIT exit");
+        break;
+    default:
+        LOG_WARNING("Unknown event type %u", event->type);
+    }
+}
+
+void temperature_humidity_error_state(FSM* fsm, Event* event)
+{
+    TemperatureHumidityObject* aobj = (TemperatureHumidityObject*)fsm->arg;
+
+    switch(event->type)
+    {
+    case eFSM_EVENT_ENTRY:
+        LOG_DEBUG("");
+        aobj->frame->valid = false;
+        break;
+    default:
+        LOG_WARNING("Unknown event type %u", event->type);
+    }
+}
+
+void temperature_humidity_idle_state(FSM* fsm, Event* event)
+{
+    (void)fsm;
+    (void)event;
+}
+
+void temperature_humidity_read_state(FSM* fsm, Event* event)
+{
+    TemperatureHumidityObject* aobj = (TemperatureHumidityObject*)fsm->arg;
+
+    (void)event;
+    (void)am2302_read(aobj);
+}
+
+void temperature_humidity_update_state(FSM* fsm, Event* event)
+{
+    (void)fsm;
+    (void)event;
+}
