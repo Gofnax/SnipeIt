@@ -5,6 +5,7 @@ typedef enum eDDLModules
 {
     eDDL_MODULE_DISTANCE,
     eDDL_MODULE_SERVO,
+    eDDL_MODULE_TEMPERATURE_HUMIDITY,
     eDLL_MODULE_COUNT
 } eDDLModules;
 

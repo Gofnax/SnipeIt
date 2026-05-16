@@ -1,6 +1,7 @@
 #include "ddl.h"
 
 /* User library includes */
+#include "ddl/temperature_humidity/temperature_humidity.h"
 #include "util/event_bus/event_config.h"
 #include "util/event_bus/event_bus.h"
 #include "ddl/distance/distance.h"
@@ -31,6 +32,10 @@ static Event servo_subscribe_events[] = {
     { .type = eSERVO_EVENT_LOCK }
 };
 
+static Event temperature_humidity_subscribe_events[] = {
+    { .type = eTEMPERATURE_HUMIDITY_EVENT_READ }
+};
+
 static DDLModule ddl_modules[eDLL_MODULE_COUNT] = {
     [eDDL_MODULE_DISTANCE] = {
         .module_init            = ddl_distance_init,
@@ -55,6 +60,18 @@ static DDLModule ddl_modules[eDLL_MODULE_COUNT] = {
                                     sizeof(servo_subscribe_events[0]),
         .subscribe_events       = servo_subscribe_events,
         .module_name            = "servo"
+    },
+    [eDDL_MODULE_TEMPERATURE_HUMIDITY] = {
+        .module_init            = ddl_temperature_humidity_init,
+        .module_post            = ddl_temperature_humidity_post,
+        .module_end             = ddl_temperature_humidity_end,
+        .module_join            = ddl_temperature_humidity_join,
+        .module_delete          = ddl_temperature_humidity_delete,
+        .ao_id                  = eAO_TEMPERATURE_HUMIDITY,
+        .subscribe_events_count = sizeof(temperature_humidity_subscribe_events) / 
+                                    sizeof(temperature_humidity_subscribe_events[0]),
+        .subscribe_events       = temperature_humidity_subscribe_events,
+        .module_name            = "temperature-humidity"
     }
 };
 

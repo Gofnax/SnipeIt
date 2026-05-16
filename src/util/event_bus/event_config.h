@@ -12,6 +12,7 @@ typedef enum eActiveObjectID
     eAO_SCHEDULER,
     eAO_DISTANCE,
     eAO_SERVO,
+    eAO_TEMPERATURE_HUMIDITY,
     eAO_COUNT
 } eActiveObjectID;
 
