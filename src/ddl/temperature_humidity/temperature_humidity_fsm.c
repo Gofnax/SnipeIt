@@ -24,6 +24,7 @@ typedef struct
 } TempHumFrame;
 
 static TempHumFrame resp_frame;
+static uint64_t last_read_tick;
 
 static uint64_t am2302_get_time_us(void)
 {
@@ -202,7 +203,12 @@ static void am2302_decode_frame(TemperatureHumidityObject* aobj, const TempHumFr
  * or by arming a 2 s timer before transitioning to a read state. */
 static eStatus am2302_init(void)
 {
-    return hal_gpio_set_direction(eTEMPERATURE_HUMIDITY_GPIO_DEVICE, eGPIO_INPUT);
+    eStatus status = hal_gpio_set_direction(eTEMPERATURE_HUMIDITY_GPIO_DEVICE, eGPIO_INPUT);
+    if(status == eSTATUS_SUCCESSFUL)
+    {
+        last_read_tick = am2302_get_time_us();
+    }
+    return status;
 }
 
 /* Perform one read transaction and return decoded values.
@@ -251,12 +257,13 @@ static eStatus am2302_read(TemperatureHumidityObject* aobj)
 
 void temperature_humidity_init_state(FSM* fsm, Event* event)
 {
-    //TemperatureHumidityObject* aobj = (TemperatureHumidityObject*)fsm->arg;
+    TemperatureHumidityObject* aobj = (TemperatureHumidityObject*)fsm->arg;
 
     switch(event->type)
     {
     case eFSM_EVENT_INIT:
         LOG_DEBUG("INIT entry");
+        aobj->frame->valid = false;
         if(am2302_init())
         {
             (void)util_fsm_transition(fsm, temperature_humidity_error_state);
@@ -281,7 +288,7 @@ void temperature_humidity_error_state(FSM* fsm, Event* event)
     switch(event->type)
     {
     case eFSM_EVENT_ENTRY:
-        LOG_DEBUG("");
+        LOG_DEBUG("ERROR entry");
         aobj->frame->valid = false;
         break;
     default:
@@ -291,20 +298,68 @@ void temperature_humidity_error_state(FSM* fsm, Event* event)
 
 void temperature_humidity_idle_state(FSM* fsm, Event* event)
 {
-    (void)fsm;
-    (void)event;
+    TemperatureHumidityObject* aobj = (TemperatureHumidityObject*)fsm->arg;
+
+    switch(event->type)
+    {
+    case eFSM_EVENT_ENTRY:
+        LOG_DEBUG("IDLE entry");
+        aobj->retry = 0;
+        break;
+    case eTEMPERATURE_HUMIDITY_EVENT_READ:
+        LOG_DEBUG("Read event received");
+        (void)util_fsm_transition(fsm, temperature_humidity_read_state);
+        break;
+    case eFSM_EVENT_EXIT:
+        LOG_DEBUG("IDLE exit");
+        break;
+    default:
+        LOG_WARNING("Unknown event type %u", event->type);
+    }
 }
 
 void temperature_humidity_read_state(FSM* fsm, Event* event)
 {
     TemperatureHumidityObject* aobj = (TemperatureHumidityObject*)fsm->arg;
+    eStatus status = 0;
 
-    (void)event;
-    (void)am2302_read(aobj);
-}
+    switch(event->type)
+    {
+    case eFSM_EVENT_ENTRY:
+        LOG_DEBUG("READ entry");
+        /* The sensor requires at least 2-seconds interval between reads. */
+        if(am2302_get_time_us() - last_read_tick > AM2302_MIN_READ_INTERVAL_MS * 1000ull)
+        {
+            do
+            {
+                status = am2302_read(aobj);
+                if(status)
+                {
+                    aobj->retry++;
+                }
+                else
+                {
+                    aobj->frame->valid = true;
+                    last_read_tick = am2302_get_time_us();
+                }
+            }while(status && aobj->retry < eTEMPERATURE_HUMIDITY_RETRY_MAX);
 
-void temperature_humidity_update_state(FSM* fsm, Event* event)
-{
-    (void)fsm;
-    (void)event;
+            if(status)
+            {
+                LOG_DEBUG("Retries exhausted (%u)", aobj->retry);
+                aobj->frame->valid = false;
+            }
+        }
+
+        /* There is no transition in IDLE entry case, so there shouldn't
+         * be a risk for stack overflow. */
+        (void)util_fsm_transition(fsm, temperature_humidity_idle_state);
+
+        break;
+    case eFSM_EVENT_EXIT:
+        LOG_DEBUG("READ exit");
+        break;
+    default:
+        LOG_WARNING("Unknown event type %u", event->type);
+    }
 }

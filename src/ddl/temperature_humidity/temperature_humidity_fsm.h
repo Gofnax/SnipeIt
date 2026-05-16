@@ -19,6 +19,4 @@ void temperature_humidity_idle_state(FSM* fsm, Event* event);
 
 void temperature_humidity_read_state(FSM* fsm, Event* event);
 
-void temperature_humidity_update_state(FSM* fsm, Event* event);
-
 #endif

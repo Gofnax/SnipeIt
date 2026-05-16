@@ -34,6 +34,7 @@
 typedef enum eTemperatureHumidityConfig
 {
     eTEMPERATURE_HUMIDITY_QUEUE_CAPACITY = 4,
+    eTEMPERATURE_HUMIDITY_RETRY_MAX = 3,
     eTEMPERATURE_HUMIDITY_GPIO_DEVICE    = eGPIO0_DEVICE
 } eTemperatureHumidityConfig;
 

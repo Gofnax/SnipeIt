@@ -179,6 +179,7 @@ void distance_init_state(FSM* fsm, Event* event)
     {
     case eFSM_EVENT_INIT:
         LOG_DEBUG("INIT entry");
+        aobj->frame->valid = false;
         timer_arg.handler = timeout_handler;
         timer_arg.arg = aobj;
         if(osal_timer_init(&aobj->timer, &timer_arg))
