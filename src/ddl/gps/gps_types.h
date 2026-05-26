@@ -11,13 +11,14 @@
 
 typedef struct
 {
-    bool    valid;
     double  latitude;
     double  longitude;
     float   altitude;
+    float   h_acc; 
+    bool    valid;
     uint8_t fix_type;          /* 0 none, 2 2D, 3 3D, 4 GNSS+DR, 5 time */
     uint8_t num_satellites;
-    float   h_acc; 
+    uint8_t reserved[5];
 } GPSFrame;
 
 typedef struct

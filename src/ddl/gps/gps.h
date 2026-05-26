@@ -12,8 +12,8 @@ eStatus ddl_gps_post(Event* event);
 
 eStatus ddl_gps_end(void);
 
-eStatus ddl_gps_join(void);
+void ddl_gps_join(void);
 
-eStatus ddl_gps_delete(void);
+void ddl_gps_delete(void);
 
 #endif

@@ -37,7 +37,7 @@ eStatus ddl_gps_end(void)
 
 void ddl_gps_join(void)
 {
-    util_active_object_join(&gps_aobj);
+    util_active_object_join(&gps_aobj.aobj);
 }
 
 void ddl_gps_delete(void)

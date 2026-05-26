@@ -28,6 +28,8 @@ eStatus hal_uart_init(void);
  * @param   buffer A pointer to the transmit buffer.
  * @param   len The number of bytes to write to the device.
  * @param   callback The function that should be called upon write completeion.
+ *          Note that this function cannot call another UART operation from within
+ *          or a deadlock may occur.
  * @param   arg Optional argument that can be used by callback.
  * @returns A value from @ref eStatus.
  * @retval  eSTATUS_SUCCESSFUL      successful execution
@@ -45,6 +47,8 @@ eStatus hal_uart_write(uint32_t device_index, const void* buffer, uint32_t len, 
  * @param   buffer A pointer to the transmit buffer.
  * @param   len The number of bytes to read from the device.
  * @param   callback The function that should be called upon read completeion.
+ *          Note that this function cannot call another UART operation from within
+ *          or a deadlock may occur.
  * @param   arg Optional argument that can be used by callback.
  * @returns A value from @ref eStatus.
  * @retval  eSTATUS_SUCCESSFUL      successful execution

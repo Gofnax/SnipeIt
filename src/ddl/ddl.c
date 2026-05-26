@@ -7,6 +7,7 @@
 #include "ddl/distance/distance.h"
 #include "ddl/servo/servo.h"
 #include "util/log/log.h"
+#include "ddl/gps/gps.h"
 
 typedef struct
 {
@@ -34,6 +35,10 @@ static Event servo_subscribe_events[] = {
 
 static Event temperature_humidity_subscribe_events[] = {
     { .type = eTEMPERATURE_HUMIDITY_EVENT_READ }
+};
+
+static Event gps_subscribe_events[] = {
+    { .type = eGPS_EVENT_READ }
 };
 
 static DDLModule ddl_modules[eDLL_MODULE_COUNT] = {
@@ -72,6 +77,18 @@ static DDLModule ddl_modules[eDLL_MODULE_COUNT] = {
                                     sizeof(temperature_humidity_subscribe_events[0]),
         .subscribe_events       = temperature_humidity_subscribe_events,
         .module_name            = "temperature-humidity"
+    },
+    [eDDL_MODULE_GPS] = {
+        .module_init            = ddl_gps_init,
+        .module_post            = ddl_gps_post,
+        .module_end             = ddl_gps_end,
+        .module_join            = ddl_gps_join,
+        .module_delete          = ddl_gps_delete,
+        .ao_id                  = eAO_GPS,
+        .subscribe_events_count = sizeof(gps_subscribe_events) / 
+                                    sizeof(gps_subscribe_events[0]),
+        .subscribe_events       = gps_subscribe_events,
+        .module_name            = "gps"
     }
 };
 

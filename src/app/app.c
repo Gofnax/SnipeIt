@@ -63,6 +63,7 @@ eStatus app_init(void)
     }
 
     LOG_DEBUG("Registering modules to scheduler");
+    static Event gps_read_event = { .type = eGPS_EVENT_READ };
     static Event distance_read_event = { .type = eDISTANCE_EVENT_READ };
     static Event servo_directions_event = { .type = eSERVO_EVENT_DIRECTIONS };
     static Event temperature_humidity_read_event = { .type = eTEMPERATURE_HUMIDITY_EVENT_READ };
@@ -80,6 +81,11 @@ eStatus app_init(void)
         return status;
     }
     status = app_scheduler_subscribe(2, eAO_TEMPERATURE_HUMIDITY, &temperature_humidity_read_event);
+    if(status)
+    {
+        return status;
+    }
+    status = app_scheduler_subscribe(3, eAO_GPS, &gps_read_event);
 
     return status;
 }

@@ -7,8 +7,8 @@
 typedef enum eGpsConfig
 {
     eGPS_QUEUE_CAPACITY = 4,
-    eDISTANCE_READ_RETRY_MAX = 3,
-    eDISTANCE_READ_TIMEOUT_MS = 100,
+    eGPS_READ_RETRY_MAX = 3,
+    eGPS_READ_TIMEOUT_MS = 300,
     eGPS_UART_DEVICE = eUART1_DEVICE
 } eGpsConfig;
 
