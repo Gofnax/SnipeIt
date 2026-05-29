@@ -27,6 +27,8 @@
 #include <signal.h>
 #include <poll.h>
 #include <stdbool.h>
+#include <sys/stat.h>   // mkfifo
+#include <sys/types.h>
 
 #include "config.h"
 #include "unix_socket.h"
@@ -56,6 +58,152 @@ static void signal_handler(int sig)
     g_running = false;
 }
 
+// Tell the app the (already-live) stream is ready to pull.
+static void send_stream_ready(AppState *app)
+{
+    char ready_msg[256];
+    snprintf(ready_msg, sizeof(ready_msg),
+             "{\"event\":\"stream_ready\",\"rtsp_port\":%d,\"stream_name\":\"%s\"}",
+             app->config.rtsp_port,
+             app->config.rtsp_stream_name);
+    ws_send(&app->ws, ready_msg);
+    ws_service(&app->ws, 0);  // Flush immediately
+    printf("[MAIN] Sent stream_ready to Android (rtsp://<PI_IP>:%d/%s)\n",
+           app->config.rtsp_port, app->config.rtsp_stream_name);
+}
+
+// Bring up the live camera pipeline (FFmpeg + picamera2) and VERIFY FFmpeg is
+// actually publishing to mediaMTX before returning success.
+//
+// This is started ONCE at program start-up and then kept running for the whole
+// session — it is deliberately NOT tied to Android connect/disconnect.  Doing
+// the start/stop per connection was the root of the intermittent black screens:
+// FFmpeg probing a freshly-(re)started raw-H.264 FIFO is not reliable, and a
+// blind "sleep then assume success" sent stream_ready even when FFmpeg had died
+// on the probe ("Output file #0 does not contain any stream").
+//
+// Reliability comes from (a) a fresh FIFO inode (clean SPS-led stream, no stale
+// writer/data), and (b) a verify-and-retry loop: start FFmpeg, let the camera
+// come up, then confirm FFmpeg is still alive (= it caught an SPS and is
+// publishing).  If it died, restart it against the now-warm camera (which emits
+// an SPS every ~1 s) and try again.  Returns true only once FFmpeg is confirmed
+// publishing.
+static bool start_camera_stream(AppState *app)
+{
+    if (app->streaming_active)
+        return true;
+    if (!app->python_connected)
+        return false;
+
+    printf("[MAIN] Starting live camera pipeline...\n");
+
+    if (pm_is_ffmpeg_running(&app->pm))
+        pm_stop_ffmpeg(&app->pm);
+
+    // Fresh FIFO inode so FFmpeg reads a clean, SPS-led stream with no leftover
+    // data or stale writer from a previous session.
+    unlink(app->config.video_path);
+    if (mkfifo(app->config.video_path, 0666) != 0)
+    {
+        perror("[MAIN] mkfifo failed to recreate camera FIFO");
+        return false;
+    }
+
+    const int MAX_FFMPEG_TRIES = 4;
+    for (int attempt = 1; attempt <= MAX_FFMPEG_TRIES; attempt++)
+    {
+        if (pm_start_ffmpeg(&app->pm, &app->config) != 0)
+        {
+            fprintf(stderr, "[MAIN] Failed to start FFmpeg\n");
+            ipc_send_stop(&app->ipc);
+            return false;
+        }
+
+        // Give FFmpeg time to exec and reach the FIFO open() call.
+        usleep(500000);  // 500ms
+
+        if (attempt == 1)
+        {
+            // Bring up the camera (once).  On later attempts it is already running
+            // and feeding the FIFO, so we only restart FFmpeg against it.
+            if (ipc_send_start(&app->ipc,
+                               app->config.video_path,         // FIFO path Python writes
+                               app->config.video_duration_sec,
+                               app->config.video_fps,
+                               app->config.loop_video,
+                               app->config.detection_frame_interval) != 0)
+            {
+                fprintf(stderr, "[MAIN] Failed to send START to Python\n");
+                pm_stop_ffmpeg(&app->pm);
+                return false;
+            }
+        }
+
+        // Wait for camera init + FFmpeg's probe (analyzeduration is 2 s).
+        printf("[MAIN] Waiting for camera and stream to initialise (attempt %d/%d)...\n",
+               attempt, MAX_FFMPEG_TRIES);
+        usleep(3000000);  // 3 s > FFmpeg's 2 s analyzeduration, so the probe has resolved
+
+        // FFmpeg still alive after the probe window ⇒ it found the stream and is
+        // publishing.  If it exited, the probe failed → retry.
+        if (pm_is_ffmpeg_running(&app->pm))
+        {
+            app->streaming_active = true;
+            printf("[MAIN] Live camera pipeline is publishing to mediaMTX\n");
+            return true;
+        }
+
+        printf("[MAIN] FFmpeg exited before publishing (probe failure); "
+               "retrying against the live camera...\n");
+    }
+
+    fprintf(stderr, "[MAIN] FFmpeg never started publishing after %d attempts\n",
+            MAX_FFMPEG_TRIES);
+    ipc_send_stop(&app->ipc);
+    return false;
+}
+
+// On-demand start for a *file* source: Python opens the file, then FFmpeg reads
+// it.  (Unlike the camera, a file stream is started when an app connects and
+// stopped when it disconnects — there is no point streaming a file to nobody.)
+static bool start_file_stream(AppState *app)
+{
+    if (app->streaming_active)
+        return true;
+    if (!app->python_connected)
+        return false;
+
+    printf("[MAIN] Starting file stream...\n");
+
+    if (pm_is_ffmpeg_running(&app->pm))
+        pm_stop_ffmpeg(&app->pm);
+
+    if (ipc_send_start(&app->ipc,
+                       app->config.video_path,
+                       app->config.video_duration_sec,
+                       app->config.video_fps,
+                       app->config.loop_video,
+                       app->config.detection_frame_interval) != 0)
+    {
+        fprintf(stderr, "[MAIN] Failed to send START to Python\n");
+        return false;
+    }
+
+    usleep(100000);  // 100ms for Python to open the video file
+
+    if (pm_start_ffmpeg(&app->pm, &app->config) != 0)
+    {
+        fprintf(stderr, "[MAIN] Failed to start FFmpeg\n");
+        ipc_send_stop(&app->ipc);
+        return false;
+    }
+
+    printf("[MAIN] Waiting for stream to initialise...\n");
+    usleep(1000000);  // 1 second for FFmpeg to start publishing
+    app->streaming_active = true;
+    return true;
+}
+
 // Callback when Android connects via WebSocket
 static void on_android_connect(void *user_data)
 {
@@ -64,60 +212,24 @@ static void on_android_connect(void *user_data)
     printf("[MAIN] Android client connected!\n");
     app->android_connected = true;
 
-    // Start fresh video stream when Android connects
-    if (app->python_connected && !app->streaming_active)
+    if (!app->python_connected)
     {
-        printf("[MAIN] Starting video stream...\n");
-
-        // Stop any existing FFmpeg (in case of reconnect)
-        if (pm_is_ffmpeg_running(&app->pm))
-        {
-            pm_stop_ffmpeg(&app->pm);
-        }
-
-        // Send START command to Python FIRST (so it's ready when video starts)
-        // Python will open the video and wait for frames
-        if (ipc_send_start(&app->ipc,
-                           app->config.video_path,
-                           app->config.video_duration_sec,
-                           app->config.video_fps,
-                           app->config.loop_video,
-                           app->config.detection_frame_interval) != 0)
-        {
-            fprintf(stderr, "[MAIN] Failed to send START to Python\n");
-            return;
-        }
-
-        // Small delay for Python to open video file
-        usleep(100000);  // 100ms
-
-        // Start FFmpeg - video streaming begins
-        if (pm_start_ffmpeg(&app->pm, &app->config) != 0)
-        {
-            fprintf(stderr, "[MAIN] Failed to start FFmpeg\n");
-            ipc_send_stop(&app->ipc);
-            return;
-        }
-
-        // Wait for FFmpeg to initialize and start publishing to mediaMTX
-        printf("[MAIN] Waiting for stream to initialize...\n");
-        usleep(1000000);  // 1 second for FFmpeg to start publishing
-
-        app->streaming_active = true;
-
-        // Send stream_ready message to Android
-        char ready_msg[256];
-        snprintf(ready_msg, sizeof(ready_msg),
-                 "{\"event\":\"stream_ready\",\"rtsp_port\":%d,\"stream_name\":\"%s\"}",
-                 app->config.rtsp_port,
-                 app->config.rtsp_stream_name);
-        ws_send(&app->ws, ready_msg);
-        ws_service(&app->ws, 0);  // Flush immediately
-
-        printf("[MAIN] Streaming started, sent stream_ready to Android\n");
-        printf("[MAIN] Android should connect to: rtsp://<PI_IP>:%d/%s\n",
-               app->config.rtsp_port, app->config.rtsp_stream_name);
+        fprintf(stderr, "[MAIN] Python not connected yet; cannot serve stream\n");
+        return;
     }
+
+    // For the live camera the pipeline is already running (started at start-up),
+    // so this is just "tell the app it's ready".  start_camera_stream() returns
+    // immediately when already streaming, and also recovers if the start-up
+    // attempt had failed.  File sources start on demand here.
+    bool ok = config_is_fifo(app->config.video_path)
+                  ? start_camera_stream(app)
+                  : start_file_stream(app);
+
+    if (ok)
+        send_stream_ready(app);
+    else
+        fprintf(stderr, "[MAIN] Stream not available; not sending stream_ready\n");
 }
 
 // Callback when Android disconnects
@@ -128,22 +240,17 @@ static void on_android_disconnect(void *user_data)
     printf("[MAIN] Android client disconnected\n");
     app->android_connected = false;
 
-    // Stop streaming completely
-    if (app->streaming_active)
+    // Live camera: keep the pipeline running so the stream stays up and the next
+    // connection is instant (and we avoid the FFmpeg/camera restart races that
+    // caused black screens).  File source: stop — no point streaming to nobody.
+    if (!config_is_fifo(app->config.video_path) && app->streaming_active)
     {
-        printf("[MAIN] Stopping video stream...\n");
-
-        // Send STOP command to Python
+        printf("[MAIN] Stopping file stream...\n");
         if (app->python_connected)
-        {
             ipc_send_stop(&app->ipc);
-        }
-
-        // Stop FFmpeg - will restart fresh when Android reconnects
         pm_stop_ffmpeg(&app->pm);
-
         app->streaming_active = false;
-        printf("[MAIN] Streaming stopped, waiting for new connection\n");
+        printf("[MAIN] File stream stopped, waiting for new connection\n");
     }
 }
 
@@ -292,6 +399,20 @@ int main(int argc, char *argv[])
     }
     app.python_connected = true;
 
+    // Bring the live camera pipeline up NOW and keep it running for the whole
+    // session, independent of Android connect/disconnect.  Starting it once (and
+    // verifying FFmpeg is actually publishing) is what makes a fresh run + first
+    // connect reliable: by the time an app connects, the stream is already live,
+    // so connecting just sends stream_ready — no per-connect FFmpeg probe race.
+    if (config_is_fifo(app.config.video_path))
+    {
+        if (!start_camera_stream(&app))
+        {
+            fprintf(stderr, "[MAIN] WARNING: camera pipeline failed to start at "
+                            "boot; will retry when an app connects\n");
+        }
+    }
+
     printf("\n[MAIN] System ready!\n");
     printf("[MAIN] Waiting for Android app to connect via WebSocket...\n");
     printf("[MAIN] Android should connect to: ws://<PI_IP>:%d\n", app.config.websocket_port);
@@ -360,21 +481,27 @@ int main(int argc, char *argv[])
             usleep(100);  // 100 microseconds
         }
 
-        // Check if FFmpeg is still running (for non-looping video)
-        if (app.streaming_active && !app.config.loop_video)
+        // Check if FFmpeg is still running.  This is "playback ended" detection
+        // for a *file* source (non-looping): when FFmpeg finishes the file we
+        // stop the session.  It must NOT apply to the live camera/FIFO source —
+        // there FFmpeg exiting is an error, not normal end-of-stream, and sending
+        // STOP here would tear down the live camera session (and could even hit
+        // Python while it is blocked opening the FIFO, crashing the detector).
+        if (app.streaming_active && !app.config.loop_video &&
+            !config_is_fifo(app.config.video_path))
         {
             pm_check_processes(&app.pm);
-            
+
             if (!pm_is_ffmpeg_running(&app.pm))
             {
                 printf("[MAIN] Video playback ended\n");
-                
+
                 // Send STOP to Python
                 if (app.python_connected)
                 {
                     ipc_send_stop(&app.ipc);
                 }
-                
+
                 app.streaming_active = false;
             }
         }

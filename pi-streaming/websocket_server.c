@@ -38,22 +38,47 @@ static int ws_callback(struct lws *wsi, enum lws_callback_reasons reason,
             printf("[WS] Client connected\n");
             if (ws)
             {
-                // Only allow one client at a time
-                if (ws->client_connected)
+                // Single-client app.  If a client is still registered when a new
+                // one arrives, it is almost always a stale half-open socket from
+                // the same Android app reconnecting before libwebsockets has
+                // detected the old TCP close.  Rejecting the new connection here
+                // was the cause of intermittent black screens: on_connect never
+                // fired, so FFmpeg was never (re)started.  Instead, evict the old
+                // client and let the new one take over.
+                if (ws->client_connected && ws->client_wsi && ws->client_wsi != wsi)
                 {
-                    printf("[WS] Rejecting connection - already have a client\n");
-                    return -1; // Reject connection
+                    struct lws *old_wsi = ws->client_wsi;
+                    printf("[WS] Existing client present - evicting it for the new connection\n");
+
+                    // Detach the old client from server state *before* tearing
+                    // down, so the old socket's eventual CLOSED callback is a
+                    // no-op (it's guarded by client_wsi == wsi).
+                    ws->client_wsi = NULL;
+                    ws->client_connected = false;
+                    ws->queue_head = 0;
+                    ws->queue_tail = 0;
+                    ws->queue_count = 0;
+
+                    // Tear down the old streaming session (stop FFmpeg, STOP to
+                    // Python) so the new connection starts a clean stream.
+                    if (ws->on_disconnect)
+                    {
+                        ws->on_disconnect(ws->callback_user_data);
+                    }
+
+                    // Force the stale socket closed asynchronously.
+                    lws_set_timeout(old_wsi, PENDING_TIMEOUT_CLOSE_SEND, LWS_TO_KILL_ASYNC);
                 }
-                
+
                 ws->client_wsi = wsi;
                 ws->client_connected = true;
-                
+
                 // Store server reference in session
                 if (session)
                 {
                     session->server = ws;
                 }
-                
+
                 // Call user callback
                 if (ws->on_connect)
                 {

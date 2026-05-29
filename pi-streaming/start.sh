@@ -10,7 +10,21 @@ echo "[start] Cleaning up previous processes..."
 pkill -f streaming_server 2>/dev/null || true
 pkill -f mediamtx           2>/dev/null || true
 pkill -f person_streamer.py 2>/dev/null || true
+# Kill any FFmpeg orphaned by a previous run.  FFmpeg is forked by the C server
+# and is reparented to init if the server dies uncleanly; a survivor keeps the
+# mediaMTX publisher slot for our stream, so the next run's FFmpeg can't publish
+# and Android sees a black screen.  Match on our FIFO input path so we don't
+# touch unrelated ffmpeg processes.
+pkill -f "ffmpeg.*/tmp/camera_stream.h264" 2>/dev/null || true
 sleep 2
+
+# ---- 0b. Create the FIFO that picamera2 writes H.264 into -------------------
+# FFmpeg reads this FIFO and remuxes it to mediaMTX (no re-encode).
+# The FIFO must exist before streaming_server starts so config_validate() passes.
+CAMERA_FIFO="/tmp/camera_stream.h264"
+rm -f "$CAMERA_FIFO"
+mkfifo "$CAMERA_FIFO"
+echo "[start] Created camera FIFO: $CAMERA_FIFO"
 
 # ---- 1. Verify Coral USB before doing anything --------------------------------
 if ! lsusb | grep -qiE 'global unichip|google'; then
@@ -44,6 +58,7 @@ cleanup() {
     echo "[start] Stopping..."
     kill "$SERVER_PID" 2>/dev/null || true
     pkill -f mediamtx  2>/dev/null || true
+    rm -f "$CAMERA_FIFO"
     exit 0
 }
 trap cleanup INT TERM
@@ -53,6 +68,7 @@ echo "[start] Activating edgetpu venv & starting person_streamer.py..."
 echo "[start] (Press Ctrl+C to stop the whole pipeline.)"
 source ~/venvs/edgetpu/bin/activate
 python3 person_streamer.py \
-    --model  /home/snipeit/SnipeIt/pi-streaming/models/ssd_mobilenet_v2_coco_quant_postprocess_edgetpu.tflite \
-    --labels /home/snipeit/SnipeIt/pi-streaming/models/coco_labels.txt \
-    --threshold 0.5
+    --model  /home/snipeit/SnipeIt/pi-streaming/models/ssd_mobilenet_v2_fpnlite_640_person_int8_edgetpu.tflite \
+    --threshold 0.25 \
+    --camera \
+    --verbose

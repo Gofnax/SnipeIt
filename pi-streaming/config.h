@@ -34,6 +34,13 @@ typedef struct
 } StreamingConfig;
 
 /**
+ * @brief   Returns true if path is a named pipe (FIFO) rather than a regular file.
+ * @details Used to skip ffprobe and choose the correct FFmpeg input flags for
+ *          live camera streams piped from picamera2's hardware H.264 encoder.
+ */
+bool config_is_fifo(const char *path);
+
+/**
  * @brief   Initialize config with default values.
  * @param   config A pointer to StreamingConfig structure.
  */
