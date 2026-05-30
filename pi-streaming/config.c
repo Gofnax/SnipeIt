@@ -4,6 +4,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <sys/stat.h>
 
 /* User Libraries */
 #include "config.h"
@@ -95,6 +96,12 @@ static int json_get_bool(const char *json, const char *key, bool *value)
     return 0;
 }
 
+bool config_is_fifo(const char *path)
+{
+    struct stat st;
+    return (stat(path, &st) == 0 && S_ISFIFO(st.st_mode));
+}
+
 void config_init_defaults(StreamingConfig *config)
 {
     *config = (StreamingConfig){
@@ -180,7 +187,20 @@ int config_probe_video(StreamingConfig *config)
         fprintf(stderr, "[CONFIG] No video path set\n");
         return -1;
     }
-    
+
+    // For a named pipe (FIFO), ffprobe would block waiting for data.
+    // Use known camera parameters instead: picamera2 encodes 1080p at 30fps.
+    if (config_is_fifo(config->video_path))
+    {
+        config->video_duration_sec = 0.0;
+        config->video_fps          = 30.0;
+        config->video_width        = 1920;
+        config->video_height       = 1080;
+        printf("[CONFIG] Live camera FIFO: %s (1080p H.264, 30fps, no duration)\n",
+               config->video_path);
+        return 0;
+    }
+
     // Check if file exists
     if (access(config->video_path, R_OK) != 0)
     {
@@ -291,7 +311,7 @@ int config_validate(const StreamingConfig *config)
         fprintf(stderr, "[CONFIG] Error: video_path is required\n");
         errors++;
     }
-    else if (access(config->video_path, R_OK) != 0)
+    else if (!config_is_fifo(config->video_path) && access(config->video_path, R_OK) != 0)
     {
         fprintf(stderr, "[CONFIG] Error: video file not readable: %s\n", config->video_path);
         errors++;
