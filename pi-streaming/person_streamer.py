@@ -409,6 +409,19 @@ def process_session_camera(
     )
     picam2.configure(video_config)
 
+    # The detector runs on the lores 1280x720 stream, so detect() returns
+    # boxes in 720p pixel space. The Android app overlays boxes on the MAIN
+    # 1920x1080 RTSP stream. Without rescaling, every box is drawn at
+    # 1280/1920 = 0.667x its correct position/size -> shifted to the top-left
+    # and shrunk (captures head+hand instead of the full body). Scale lores
+    # pixel coords up to main-stream space before sending over IPC.
+    # Derived from the configured sizes (not hardcoded) so it stays correct
+    # if either resolution changes. Here both axes are 1.5 (16:9 -> 16:9).
+    main_w, main_h = 1920, 1080
+    lores_w, lores_h = 1280, 720
+    sx = main_w / lores_w   # 1.5
+    sy = main_h / lores_h   # 1.5
+
     # Hardware H.264 encoder:
     #   8 Mbps for 1080p, SPS/PPS repeated before every IDR frame so that
     #   Android clients connecting mid-stream never see a green screen,
@@ -478,10 +491,12 @@ def process_session_camera(
                         detection_id=str(i + 1),
                         obj_class="HUMAN",
                         confidence=float(d.score),
-                        x=int(d.bbox_xywh[0]),
-                        y=int(d.bbox_xywh[1]),
-                        width=int(d.bbox_xywh[2]),
-                        height=int(d.bbox_xywh[3]),
+                        # Rescale 720p detector coords -> 1080p main-stream coords
+                        # so the app's overlay aligns with the displayed video.
+                        x=int(round(d.bbox_xywh[0] * sx)),
+                        y=int(round(d.bbox_xywh[1] * sy)),
+                        width=int(round(d.bbox_xywh[2] * sx)),
+                        height=int(round(d.bbox_xywh[3] * sy)),
                     )
                     for i, d in enumerate(dets)
                 ]
