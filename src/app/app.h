@@ -6,6 +6,7 @@
 
 /* User library includes */
 #include "app/app_config.h"
+#include "ddl/ddl_frame.h"
 #include "util/fsm/fsm.h"
 #include "status.h"
 
@@ -52,5 +53,13 @@ void app_join(void);
  * @details This function calls ddl_delete() from within.
  */
 void app_delete(void);
+
+/**
+ * @brief   Get the DDLFrame snapshot.
+ * @details The snapshot is refreshed by the snapshot Active Object on its
+ *          scheduler tick (~once every 2 s).
+ * @returns Const pointer to the static snapshot frame.
+ */
+const DDLFrame* app_get_ddl_snapshot(void);
 
 #endif

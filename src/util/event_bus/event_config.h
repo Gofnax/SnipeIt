@@ -14,6 +14,7 @@ typedef enum eActiveObjectID
     eAO_SERVO,
     eAO_TEMPERATURE_HUMIDITY,
     eAO_GPS,
+    eAO_BROADCASTER,
     eAO_COUNT
 } eActiveObjectID;
 

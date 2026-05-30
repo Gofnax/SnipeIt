@@ -1,0 +1,37 @@
+#ifndef DDL_BRIDGE_H
+#define DDL_BRIDGE_H
+
+#include "websocket_server.h"
+
+typedef struct DdlBridge DdlBridge;
+
+/**
+ * @brief Start the sensor pipeline and bridge it to the WebSocket server.
+ * @details Runs the same boot sequence as src/main.c (log/hal/event_bus/app
+ *          init + scheduler start), but does NOT block on app_join().
+ *          After this returns, the DDL active objects run on their own threads
+ *          and the broadcaster module refreshes the snapshot frame every ~2s.
+ *
+ * @param ws        Already-initialised WebSocket server. The bridge does not
+ *                  take ownership; the caller still owns it.
+ * @param period_ms Minimum interval between sensor_data emissions.
+ *                  Suggested: 2000 (matches the scheduler cycle).
+ * @return Opaque bridge handle on success, NULL on failure (the bridge
+ *         has fully cleaned up after itself on failure).
+ */
+DdlBridge* ddl_bridge_start(WebSocketServer* ws, unsigned int period_ms);
+
+/**
+ * @brief Called from the pi-streaming main loop. Cheap when nothing to do.
+ * @details If a client is connected and at least period_ms has elapsed since
+ *          the last emission, reads the snapshot, serialises it to JSON, and
+ *          queues the message on the WS server. Otherwise returns quickly.
+ */
+void ddl_bridge_tick(DdlBridge* bridge);
+
+/**
+ * @brief Stop the sensor pipeline and free the bridge.
+ */
+void ddl_bridge_stop(DdlBridge* bridge);
+
+#endif

@@ -99,10 +99,18 @@ CPPCHECK_FLAGS += -j$(CPPCHECK_THREADS)
 # Path to the local ceedling folder.
 CEEDLING := vendor/ceedling/bin/ceedling
 
+# ------------------------------ Library variant ----------------------------- #
+# All compiled objects except src/main.o, archived into a static library so
+# other binaries (e.g. pi-streaming/streaming_server) can link the same code
+# without dragging in main().
+LIB_NAME := libsnipeit.a
+LIB_OBJS := $(filter-out $(BUILD_DIR)/main.o,$(OBJS))
+LIB      := $(BIN_DIR)/$(LIB_NAME)
+
 # ------------------------------- Make targets ------------------------------- #
 
 # Ensure workflow targets are not confused with files.
-.PHONY: build lint test clean
+.PHONY: build lint test clean lib
 
 # Build the project binary.
 build: $(BIN_DIR)/$(TARGET)
@@ -135,6 +143,11 @@ clean:
 	ruby $(CEEDLING) clobber
 	rm -rf $(BUILD_ROOT)
 	rm -rf $(BIN_ROOT)
+
+lib: $(LIB)
+
+$(LIB): $(LIB_OBJS) | $(BIN_DIR)
+	ar rcs $@ $(LIB_OBJS)
 
 # Include .d files to ensure make detects changes in .h files.
 -include $(DEPS)

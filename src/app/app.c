@@ -1,9 +1,11 @@
 #include "app.h"
 
 /* User library includes */
+#include "broadcaster/broadcaster_events.h"
 #include "util/event_bus/event_config.h"
-#include "util/event_bus/event_bus.h"
 #include "scheduler/scheduler_events.h"
+#include "util/event_bus/event_bus.h"
+#include "broadcaster/broadcaster.h"
 #include "scheduler/scheduler.h"
 #include "util/log/log.h"
 #include "ddl/ddl.h"
@@ -30,10 +32,21 @@ static APPModule app_modules[eAPP_MODULE_COUNT] = {
         .ao_id              = eAO_SCHEDULER,
         .subscribe_event    = { .type = eSCHEDULER_EVENT_START },
         .module_name        = "scheduler"
+    },
+    [eAPP_MODULE_BROADCASTER] = {
+        .module_init        = app_broadcaster_init,
+        .module_post        = app_broadcaster_post,
+        .module_end         = app_broadcaster_end,
+        .module_join        = app_broadcaster_join,
+        .module_delete      = app_broadcaster_delete,
+        .ao_id              = eAO_BROADCASTER,
+        .subscribe_event    = { .type = eBROADCASTER_EVENT_UPDATE },
+        .module_name        = "broadcaster"
     }
 };
 
 static DDLFrame ddl_frame;
+static DDLFrame ddl_snapshot;
 
 eStatus app_init(void)
 {
@@ -42,6 +55,14 @@ eStatus app_init(void)
     if(status)
     {
         LOG_ERROR("Failed to initialize the DDL layer");
+        return status;
+    }
+
+    LOG_DEBUG("Configuring the broadcaster module");
+    status = app_broadcaster_configure(&ddl_frame, &ddl_snapshot);
+    if(status)
+    {
+        LOG_ERROR("Failed to configure the broadcaster module");
         return status;
     }
 
@@ -66,6 +87,7 @@ eStatus app_init(void)
     static Event gps_read_event = { .type = eGPS_EVENT_READ };
     static Event distance_read_event = { .type = eDISTANCE_EVENT_READ };
     static Event servo_directions_event = { .type = eSERVO_EVENT_DIRECTIONS };
+    static Event broadcaster_update_event = { .type = eBROADCASTER_EVENT_UPDATE };
     static Event temperature_humidity_read_event = { .type = eTEMPERATURE_HUMIDITY_EVENT_READ };
     // TODO: hardcoded, refactor later
     // Can add a `ddl_subscribe()`-type of function that will go over the modules and
@@ -86,6 +108,8 @@ eStatus app_init(void)
         return status;
     }
     status = app_scheduler_subscribe(3, eAO_GPS, &gps_read_event);
+    if(status) { return status; }
+    status = app_scheduler_subscribe(4, eAO_BROADCASTER, &broadcaster_update_event);
 
     return status;
 }
@@ -151,4 +175,9 @@ void app_delete(void)
 
     LOG_INFO("Deleting DDL resources");
     ddl_delete();
+}
+
+const DDLFrame* app_get_ddl_snapshot(void)
+{
+    return &ddl_snapshot;
 }

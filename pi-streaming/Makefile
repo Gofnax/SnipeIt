@@ -6,25 +6,28 @@
 #   make all          - Build everything
 #   make clean        - Remove built files
 
-CC = gcc
-CFLAGS = -Wall -Wextra -g -O2
-LDFLAGS = -lwebsockets
+CC      = gcc
+CFLAGS  = -Wall -Wextra -g -O2 -I../src
+LDFLAGS = -L../bin/debug -lsnipeit -lwebsockets -lm -pthread -luring -lgpiod
 
 # Source files
-SRCS = main.c unix_socket.c websocket_server.c process_manager.c config.c
-HDRS = unix_socket.h websocket_server.h process_manager.h config.h
+SRCS = main.c unix_socket.c websocket_server.c process_manager.c config.c ddl_bridge.c
+HDRS = unix_socket.h websocket_server.h process_manager.h config.h ddl_bridge.h
 
 IPC_SRCS = unix_socket.c
 IPC_HDRS = unix_socket.h
 
-# Targets
+SNIPEIT_LIB = ../bin/debug/libsnipeit.a
+
 .PHONY: all clean help
 
-# Default target - build main server
 all: streaming_server test_ipc
 
-# Main streaming server
-streaming_server: $(SRCS) $(HDRS)
+# Build the static library via the root Makefile.
+$(SNIPEIT_LIB):
+	$(MAKE) -C .. lib
+
+streaming_server: $(SRCS) $(HDRS) $(SNIPEIT_LIB)
 	$(CC) $(CFLAGS) -o $@ $(SRCS) $(LDFLAGS)
 	@echo ""
 	@echo "========================================"

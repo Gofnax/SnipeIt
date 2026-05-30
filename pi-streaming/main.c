@@ -32,8 +32,11 @@
 
 #include "config.h"
 #include "unix_socket.h"
+#include "ddl_bridge.h"
 #include "websocket_server.h"
 #include "process_manager.h"
+
+#define DDL_BRIDGE_INTERVAL_MS 1000
 
 // Global state for signal handler
 static volatile bool g_running = true;
@@ -45,6 +48,7 @@ typedef struct
     IPCConnection ipc;
     WebSocketServer ws;
     ProcessManager pm;
+    DdlBridge* bridge;
     bool python_connected;
     bool android_connected;
     bool streaming_active;
@@ -375,6 +379,16 @@ int main(int argc, char *argv[])
     
     ws_set_callbacks(&app.ws, on_android_connect, on_android_disconnect, &app);
     
+    // Initialize DDL bridge (starts the DDL snapshot refresh loop)
+    app.bridge = ddl_bridge_start(&app.ws, DDL_BRIDGE_INTERVAL_MS);
+    if(app.bridge == NULL)
+    {
+        fprintf(stderr, "[MAIN] Failed to start DDL bridge\n");
+        ws_cleanup(&app.ws);
+        pm_cleanup(&app.pm);
+        return 1;
+    }
+
     // Initialize Unix socket IPC
     printf("[MAIN] Initializing IPC server...\n");
     if (ipc_server_init(&app.ipc) != 0)
@@ -475,6 +489,9 @@ int main(int argc, char *argv[])
             ws_service_counter = 0;
         }
 
+        // Push a sensor_data frame at most every period_ms (gated inside)
+        ddl_bridge_tick(app.bridge);
+
         // Small sleep when no IPC work to prevent 100% CPU
         if (!did_work)
         {
@@ -523,6 +540,8 @@ int main(int argc, char *argv[])
         pm_stop_ffmpeg(&app.pm);
     }
     
+    ddl_bridge_stop(app.bridge);
+
     ipc_cleanup(&app.ipc);
     ws_cleanup(&app.ws);
     pm_cleanup(&app.pm);
