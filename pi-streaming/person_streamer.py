@@ -74,19 +74,22 @@ class EdgeTPUPersonDetector:
 
         self._tflite = tflite
 
-        # Load EdgeTPU delegate (requires EdgeTPU runtime installed)
-        try:
-            delegate = self._tflite.load_delegate("libedgetpu.so.1")
-        except Exception as e:
-            raise RuntimeError(
-                "Failed to load EdgeTPU delegate 'libedgetpu.so.1'. "
-                "Verify EdgeTPU runtime is installed and the Coral USB is connected."
-            ) from e
-
-        self.interpreter = self._tflite.Interpreter(
-            model_path=self.model_path,
-            experimental_delegates=[delegate],
-        )
+        # Load EdgeTPU delegate only when the model filename signals it was
+        # compiled for the TPU.  Plain INT8 models run on CPU via XNNPACK.
+        if "_edgetpu" in os.path.basename(self.model_path):
+            try:
+                delegate = self._tflite.load_delegate("libedgetpu.so.1")
+            except Exception as e:
+                raise RuntimeError(
+                    "Failed to load EdgeTPU delegate 'libedgetpu.so.1'. "
+                    "Verify EdgeTPU runtime is installed and the Coral USB is connected."
+                ) from e
+            self.interpreter = self._tflite.Interpreter(
+                model_path=self.model_path,
+                experimental_delegates=[delegate],
+            )
+        else:
+            self.interpreter = self._tflite.Interpreter(model_path=self.model_path)
         self.interpreter.allocate_tensors()
 
         in_details = self.interpreter.get_input_details()[0]
@@ -232,11 +235,17 @@ class EdgeTPUPersonDetector:
         canvas = np.full((self._in_h, self._in_w, 3), 128, dtype=np.uint8)
         canvas[pad_y:pad_y + new_h, pad_x:pad_x + new_w] = resized
 
-        # Quantized EdgeTPU model takes raw uint8 [0-255]; do NOT normalize.
-        if self._in_dtype == np.uint8:
-            input_tensor = canvas
-        else:
-            input_tensor = canvas.astype(np.float32) / 255.0
+        # Input contract for this FPNLite export is broken: the input tensor is
+        # declared uint8 with quant scale=1.0/zero_point=0 (a no-op), but the
+        # network was NOT trained on raw uint8 [0,255]. Feeding raw bytes gives
+        # dead, scene-invariant scores (~0.05-0.13). The encoding the trained
+        # weights actually respond to is float [0,1] ROUNDED to a 0/1 mask
+        # (pixel >= 128 -> 1, else 0), then handed to the graph as uint8.
+        # Verified with probe_uint8.py: this encoding scores 0.50 on a person
+        # frame vs 0.18 on a gray control; raw uint8 scores 0.094 flat on both.
+        # The Pi tflite_runtime rejects float32 into a uint8 tensor, so we do
+        # the round in float then cast back to uint8 (values are only 0 or 1).
+        input_tensor = np.round(canvas.astype(np.float32) / 255.0).astype(np.uint8)
 
         input_tensor = np.expand_dims(input_tensor, axis=0)
         self.interpreter.set_tensor(self._in_index, input_tensor)
